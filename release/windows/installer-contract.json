@@ -1,0 +1,17 @@
+{
+  "edition": "Community",
+  "version": "0.1.0",
+  "platform": "win32-x64",
+  "requiresWsl": false,
+  "requiresVirtualMachine": false,
+  "requiresContainer": false,
+  "bundledRuntimes": [
+    "node",
+    "python"
+  ],
+  "privateDataOutsideApplication": true,
+  "uninstallPreservesData": true,
+  "archiveTransport": "local-native",
+  "repoVisibility": "private",
+  "status": "LOCAL_TEST_CANDIDATE_NOT_RELEASE_QUALIFIED"
+}

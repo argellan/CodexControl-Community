@@ -1,0 +1,19 @@
+/* Author: Bishop Crockett · Owner: Argellan.com · License: MIT · SPDX-License-Identifier: MIT */
+.installation-workspace{display:grid;gap:12px;min-width:0;padding-bottom:env(safe-area-inset-bottom,0px)}
+.installation-workspace .installation-card{min-width:0;margin:0}
+.installation-workspace h4{margin:8px 0;overflow-wrap:anywhere}
+.installation-feedback,.installation-note{margin:4px 0 10px;line-height:1.5;overflow-wrap:anywhere}
+.installation-feedback{font-weight:600}
+.installation-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:8px 16px;margin:8px 0 12px}
+.installation-facts div{min-width:0}.installation-facts dt{font-size:.86em;opacity:.8}.installation-facts dd{margin:3px 0 0;overflow-wrap:anywhere}
+.installation-field{display:flex;flex-direction:column;gap:6px;margin:10px 0;min-width:0}
+.installation-workspace input,.installation-workspace select,.installation-workspace button{min-height:44px;max-width:100%;box-sizing:border-box;font:inherit}
+.installation-workspace input,.installation-workspace select{width:100%}
+.installation-actions{display:flex;flex-wrap:wrap;gap:8px}
+.installation-peer{border-top:1px solid var(--line,#737373);padding:10px 0}
+.installation-confirm,.installation-invitation{padding:12px;border:1px solid var(--line,#737373);border-radius:8px;margin:10px 0;overflow-wrap:anywhere}
+.installation-connect{margin-top:12px}.installation-connect summary{cursor:pointer;min-height:44px;display:list-item;align-content:center}
+.installation-candidates{padding-left:20px}.installation-candidates li{padding:8px 0;overflow-wrap:anywhere}.installation-candidates button{margin-left:8px}
+.installation-workspace :focus-visible{outline:2px solid currentColor;outline-offset:3px}
+@media(max-width:600px){.installation-actions>*{flex:1 1 160px}.installation-candidates button{display:block;margin:6px 0 0}.installation-facts{grid-template-columns:1fr}.installation-workspace button{white-space:normal}.installation-workspace{gap:8px}}
+@media(prefers-reduced-motion:reduce){.installation-workspace *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}

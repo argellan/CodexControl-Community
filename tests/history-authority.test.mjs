@@ -1,0 +1,25 @@
+// Author: Bishop Crockett; Owner: Argellan.com; SPDX-License-Identifier: MIT
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs/promises';import path from 'node:path';import os from 'node:os';import crypto from 'node:crypto';
+import {ConfigurationStore} from '../lib/configuration.mjs';import {DEFAULT_CONFIGURATION} from '../public/settings-schema.mjs';
+import {createServer} from './fixture-server.mjs';import {FleetHub} from '../lib/fleet.mjs';import {Administration} from '../lib/administration.mjs';
+const hash=s=>crypto.createHash('sha256').update(s).digest('hex'),deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return{promise,resolve};};
+async function fixture(run){
+ const directory=await fs.mkdtemp(path.join(os.tmpdir(),'cc-history-scope-TEST_ONLY-')),viewers=[{id:'owner',label:'TEST_ONLY owner',role:'admin',hostIds:null,projectIds:null,tokenHash:hash('TEST_ONLY_OWNER')},{id:'reader',label:'TEST_ONLY reader',role:'viewer',hostIds:['alpha'],projectIds:['Alpha'],tokenHash:hash('TEST_ONLY_READER')}],hosts=['alpha','beta'].map(id=>({id,tokenHash:hash('TEST_ONLY_SOURCE_'+id)}));let server;
+ try{const administration=await Administration.open({directory:path.join(directory,'admin'),initial:{viewers,hosts}}),hub=await FleetHub.open({directory:path.join(directory,'hub'),hosts});for(const host of hosts)await hub.ingest('TEST_ONLY_SOURCE_'+host.id,{hostId:host.id,batchId:'TEST_ONLY_'+host.id,observedAt:new Date().toISOString(),sessions:[{id:'worker',project:host.id==='alpha'?'Alpha':'Beta'}],events:[{id:'TEST_ONLY_'+host.id,hostId:host.id,sourceId:host.id,sessionId:'worker',project:host.id==='alpha'?'Alpha':'Beta',projectBasis:'source-context',kind:'operation',at:new Date().toISOString(),label:'TEST_ONLY '+host.id}]});
+ const configuration=await ConfigurationStore.open({directory:path.join(directory,'config'),initial:DEFAULT_CONFIGURATION});let gate=null;server=createServer({hub,configuration,administration,securityState:await administration.state(),readSnapshot:async()=>{const current=gate;gate=null;if(current){current.entered.resolve();await current.release.promise;}return{host:{id:'hub',name:'TEST_ONLY hub'},sessions:[],events:[],observedAt:new Date().toISOString()};}});await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin='http://127.0.0.1:'+server.address().port;
+ async function request(route,{token='TEST_ONLY_READER',cookie,method='GET',body}={}){const r=await fetch(origin+route,{method,headers:{origin,...(cookie?{cookie}:{authorization:'Bearer '+token}),...(body?{'content-type':'application/json'}:{})},body:body?JSON.stringify(body):undefined});return{status:r.status,data:await r.json(),cookie:r.headers.get('set-cookie')?.split(';')[0]};}
+ await run({request,administration,hold(){gate={entered:deferred(),release:deferred()};return gate;}});
+ }finally{if(server){server.closeAllConnections();await new Promise(r=>server.close(r));}assert.equal(path.dirname(directory),path.resolve(os.tmpdir()));await fs.rm(directory,{recursive:true,force:true});}
+}
+test('restricted History returns only permitted host/project records and rejects explicit forbidden scope and unsupported search',()=>fixture(async({request})=>{
+ const allowed=await request('/api/history?hostId=alpha&project=Alpha');assert.equal(allowed.status,200);assert.ok(allowed.data.events.length);assert.ok(allowed.data.events.every(e=>e.hostId==='alpha'&&e.project==='Alpha'));
+ for(const query of ['hostId=beta','project=Beta']){const r=await request('/api/history?'+query);assert.equal(r.status,403);assert.equal(r.data.events,undefined);}
+ assert.equal((await request('/api/history?search=needle')).status,400);
+}));
+for(const change of ['scope','role','revoke'])test('History response delivery rejects changed '+change+' authority during the actual awaited snapshot read',()=>fixture(async({request,administration,hold})=>{
+ const gate=hold(),pending=request('/api/history?hostId=alpha');pending.catch(()=>{});await gate.entered.promise;const state=await administration.state(),user=change==='scope'?{id:'reader',hostIds:['beta'],projectIds:['Beta']}:change==='role'?{id:'reader',role:'admin',hostIds:null,projectIds:null}:{id:'reader',disabled:true};try{const changed=await request('/api/admin/users',{token:'TEST_ONLY_OWNER',method:'POST',body:{revision:state.revision,user}});assert.equal(changed.status,200);}finally{gate.release.resolve();}
+ const r=await pending;assert.ok([401,403].includes(r.status));assert.equal(r.data.events,undefined);
+}));
+test('History cookie logout during an awaited source read prevents response delivery',()=>fixture(async({request,hold})=>{
+ const login=await request('/api/session',{method:'POST',body:{token:'TEST_ONLY_READER'}});assert.equal(login.status,200);const gate=hold(),pending=request('/api/history?hostId=alpha',{cookie:login.cookie});await gate.entered.promise;try{assert.equal((await request('/api/session/logout',{method:'POST',cookie:login.cookie})).status,200);}finally{gate.release.resolve();}const r=await pending;assert.equal(r.status,401);assert.equal(r.data.events,undefined);
+}));

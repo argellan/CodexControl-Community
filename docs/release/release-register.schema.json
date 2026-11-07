@@ -1,0 +1,1136 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.invalid/codexcontrol/release-register.schema.json",
+  "title": "CodexControl release evidence register (adopted protocol 1.1)",
+  "description": "Structural contract only. Run semantic validation and human review; validation is not qualification or approval.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "created_at",
+    "scope",
+    "authority",
+    "execution_settings",
+    "candidate",
+    "plan",
+    "checks",
+    "evidence",
+    "findings",
+    "approval",
+    "remote",
+    "preservation",
+    "decision"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.1"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project",
+        "repository",
+        "target_ref",
+        "profiles",
+        "purpose",
+        "research_only",
+        "expected_visibility"
+      ],
+      "properties": {
+        "project": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repository": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stable_repository_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "target_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "profiles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 1
+        },
+        "research_only": {
+          "type": "boolean"
+        },
+        "expected_visibility": {
+          "enum": [
+            "private",
+            "public",
+            "internal",
+            "UNKNOWN"
+          ]
+        }
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner",
+        "evidence_ref",
+        "allowed_actions",
+        "forbidden_actions"
+      ],
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "allowed_actions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "forbidden_actions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "execution_settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested",
+        "observed",
+        "verification_state",
+        "exception_authority"
+      ],
+      "properties": {
+        "requested": {
+          "type": "string",
+          "minLength": 1
+        },
+        "observed": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "verification_state": {
+          "enum": [
+            "VERIFIED",
+            "UNKNOWN"
+          ]
+        },
+        "exception_authority": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "candidate": {
+      "$ref": "#/definitions/identity"
+    },
+    "plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "revision",
+        "frozen",
+        "budget_minutes",
+        "max_repair_cycles",
+        "safety_limits",
+        "required_platforms",
+        "reuse_decisions",
+        "ci_policy",
+        "ci_policy_reason",
+        "required_ci_names"
+      ],
+      "properties": {
+        "revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "frozen": {
+          "type": "boolean"
+        },
+        "budget_minutes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_repair_cycles": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "safety_limits": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required_platforms": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "reuse_decisions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "ci_policy": {
+          "enum": [
+            "REQUIRED",
+            "NONE_JUSTIFIED",
+            "UNDETERMINED"
+          ]
+        },
+        "ci_policy_reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "required_ci_names": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/check"
+      },
+      "minItems": 1
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/evidence"
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/finding"
+      }
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "owner",
+        "evidence_ref",
+        "repository",
+        "target_ref",
+        "expected_old_sha",
+        "approved_new_sha",
+        "artifact_sha256s",
+        "actions"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "NOT_REQUESTED",
+            "PENDING",
+            "APPROVED",
+            "DENIED",
+            "STALE"
+          ]
+        },
+        "owner": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "evidence_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "repository": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "target_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "expected_old_sha": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-f0-9]{40,64}$"
+        },
+        "approved_new_sha": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-f0-9]{40,64}$"
+        },
+        "artifact_sha256s": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "remote": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "observed_sha",
+        "observed_visibility",
+        "evidence_refs",
+        "required_ci"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "NOT_PUSHED",
+            "UNCERTAIN",
+            "PUSHED_PENDING_VERIFICATION",
+            "VERIFIED"
+          ]
+        },
+        "observed_sha": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-f0-9]{40,64}$"
+        },
+        "observed_visibility": {
+          "enum": [
+            "private",
+            "public",
+            "internal",
+            "UNKNOWN"
+          ]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required_ci": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "sha",
+              "run_attempt",
+              "conclusion",
+              "evidence_ref"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sha": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^[a-f0-9]{40,64}$"
+              },
+              "run_attempt": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 1
+              },
+              "conclusion": {
+                "enum": [
+                  "SUCCESS",
+                  "FAILURE",
+                  "PENDING",
+                  "SKIPPED",
+                  "UNAVAILABLE",
+                  "STALE"
+                ]
+              },
+              "evidence_ref": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "preservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "checkpoint_id",
+        "private_location",
+        "manifest_evidence_ref",
+        "restore_evidence_ref",
+        "exclusions"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "NOT_DONE",
+            "LOCAL_ONLY",
+            "OFFHOST_VERIFIED",
+            "TRANSFER_UNCONFIRMED"
+          ]
+        },
+        "checkpoint_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "private_location": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "manifest_evidence_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "restore_evidence_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "exclusions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "rationale",
+        "open_blocker_ids",
+        "accepted_risk_ids"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "RESEARCH_ONLY",
+            "BLOCKED",
+            "READY_FOR_PUSH_REVIEW",
+            "READY_WITH_ACCEPTED_RISK",
+            "PUSHED_PENDING_VERIFICATION",
+            "REMOTE_VERIFIED"
+          ]
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        },
+        "open_blocker_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "accepted_risk_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit",
+        "tree",
+        "dirty_state",
+        "dirty_manifest_ref",
+        "artifact_sha256",
+        "artifact_path",
+        "version",
+        "local_identity_verified"
+      ],
+      "properties": {
+        "commit": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-f0-9]{40,64}$"
+        },
+        "tree": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-f0-9]{40,64}$"
+        },
+        "dirty_state": {
+          "enum": [
+            "CLEAN",
+            "DIRTY_RECORDED",
+            "UNKNOWN"
+          ]
+        },
+        "dirty_manifest_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "artifact_sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "artifact_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "local_identity_verified": {
+          "type": "boolean"
+        }
+      }
+    },
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "stage_id",
+        "title",
+        "risk",
+        "basis_refs",
+        "requirement_ids",
+        "applicability",
+        "applicability_reason",
+        "mandatory",
+        "hard_gate",
+        "method_kind",
+        "procedure",
+        "inputs",
+        "environment",
+        "fixture",
+        "expected",
+        "actual",
+        "status",
+        "reason",
+        "owner",
+        "cost_limit_minutes",
+        "candidate_identity",
+        "evidence_refs",
+        "finding_refs",
+        "invalidated_by",
+        "replacement_check_id",
+        "observed_at",
+        "phase"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Z0-9][A-Z0-9._-]+$"
+        },
+        "stage_id": {
+          "enum": [
+            "G00",
+            "G01",
+            "G02",
+            "G03",
+            "G04",
+            "G05",
+            "G06",
+            "G07",
+            "G08",
+            "G09",
+            "G10",
+            "G11",
+            "G12",
+            "G13",
+            "G14",
+            "G15",
+            "G16",
+            "G17"
+          ]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "risk": {
+          "type": "string",
+          "minLength": 1
+        },
+        "basis_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "requirement_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "applicability": {
+          "enum": [
+            "APPLICABLE",
+            "NOT_APPLICABLE",
+            "UNDETERMINED"
+          ]
+        },
+        "applicability_reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mandatory": {
+          "type": "boolean"
+        },
+        "hard_gate": {
+          "type": "boolean"
+        },
+        "method_kind": {
+          "enum": [
+            "STATIC_REVIEW",
+            "DYNAMIC_TEST",
+            "TOOL_SCAN",
+            "MANUAL_REVIEW",
+            "IDENTITY",
+            "OWNER_DECISION"
+          ]
+        },
+        "procedure": {
+          "type": "string",
+          "minLength": 1
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "environment": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fixture": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expected": {
+          "type": "string",
+          "minLength": 1
+        },
+        "actual": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "NOT_RUN",
+            "BLOCKED",
+            "STALE"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cost_limit_minutes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "candidate_identity": {
+          "$ref": "#/definitions/identity"
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "finding_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "invalidated_by": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "replacement_check_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "observed_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "phase": {
+          "enum": [
+            "QUALIFICATION",
+            "PUSH_APPROVAL",
+            "POST_PUSH",
+            "SESSION_CLOSE"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "PASS"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "applicability": {
+                "const": "APPLICABLE"
+              },
+              "actual": {
+                "type": "string",
+                "minLength": 1
+              },
+              "evidence_refs": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "observed_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "applicability": {
+                "const": "NOT_APPLICABLE"
+              }
+            },
+            "required": [
+              "applicability"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": "NOT_RUN"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "STALE"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "invalidated_by": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "path_or_url",
+        "sha256",
+        "classification",
+        "kind",
+        "tool_version",
+        "timestamp",
+        "redaction_note",
+        "limitations"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path_or_url": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "classification": {
+          "enum": [
+            "PRIVATE_REDACTED",
+            "PRIVATE_RESTRICTED",
+            "PUBLIC_SOURCE"
+          ]
+        },
+        "kind": {
+          "enum": [
+            "LOG",
+            "MANIFEST",
+            "SCREENSHOT",
+            "REPORT",
+            "SOURCE",
+            "OWNER_AUTHORITY",
+            "RESTORE_RECEIPT",
+            "REMOTE_RECEIPT"
+          ]
+        },
+        "tool_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "redaction_note": {
+          "type": "string",
+          "minLength": 1
+        },
+        "limitations": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "check_refs",
+        "impact",
+        "likelihood",
+        "preconditions",
+        "confidence",
+        "release_scope",
+        "blocker",
+        "unwaivable",
+        "owner",
+        "exit_test",
+        "state",
+        "closure_evidence_refs",
+        "accepted_by",
+        "acceptance_authority_ref",
+        "acceptance_expiry_or_trigger",
+        "compensating_controls"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "check_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "impact": {
+          "type": "string",
+          "minLength": 1
+        },
+        "likelihood": {
+          "type": "string",
+          "minLength": 1
+        },
+        "preconditions": {
+          "type": "string",
+          "minLength": 1
+        },
+        "confidence": {
+          "enum": [
+            "HYPOTHESIS",
+            "STATIC_REVIEW",
+            "DYNAMIC_OBSERVATION",
+            "FIX_VERIFIED"
+          ]
+        },
+        "release_scope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "blocker": {
+          "type": "boolean"
+        },
+        "unwaivable": {
+          "type": "boolean"
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exit_test": {
+          "type": "string",
+          "minLength": 1
+        },
+        "state": {
+          "enum": [
+            "OPEN",
+            "FIX_VERIFIED",
+            "DISPROVED",
+            "SCOPE_REMOVED",
+            "RISK_ACCEPTED"
+          ]
+        },
+        "closure_evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "accepted_by": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "acceptance_authority_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "acceptance_expiry_or_trigger": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "compensating_controls": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "FIX_VERIFIED",
+                  "DISPROVED",
+                  "SCOPE_REMOVED"
+                ]
+              }
+            },
+            "required": [
+              "state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "closure_evidence_refs": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "RISK_ACCEPTED"
+              }
+            },
+            "required": [
+              "state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "unwaivable": {
+                "const": false
+              },
+              "accepted_by": {
+                "type": "string",
+                "minLength": 1
+              },
+              "acceptance_authority_ref": {
+                "type": "string",
+                "minLength": 1
+              },
+              "acceptance_expiry_or_trigger": {
+                "type": "string",
+                "minLength": 1
+              },
+              "compensating_controls": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

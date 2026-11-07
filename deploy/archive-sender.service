@@ -1,0 +1,34 @@
+# Author: Bishop Crockett
+# Owner: Argellan.com
+# License: MIT
+# SPDX-License-Identifier: MIT
+# Attribution covers ARGELLAN-authored implementation and modifications only.
+# Upstream credits and licenses remain in THIRD_PARTY_NOTICES.md.
+# Example user unit only. Copying this file does not configure a receiver or
+# enable scheduling. See docs/design/ARCHIVE_SENDER_SETUP.md first.
+[Unit]
+Description=CodexControl bounded usage archive sender
+Documentation=file://%h/.local/share/codex-control/app/docs/design/ARCHIVE_SENDER_SETUP.md
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/.local/share/codex-control/app
+ExecStart=%h/.local/share/codex-control/runtime/bin/node %h/.local/share/codex-control/app/scripts/archive-usage.mjs --config %h/.config/codex-control/archive.json
+Restart=no
+RuntimeMaxSec=120
+# RuntimeMaxSec does not bound Type=oneshot activation; this is the real limit.
+TimeoutStartSec=120
+TimeoutStopSec=10
+KillMode=control-group
+MemoryMax=192M
+CPUQuota=10%
+Nice=10
+IOSchedulingClass=idle
+UMask=0077
+NoNewPrivileges=yes
+StandardOutput=journal
+StandardError=journal
+
+# Filesystem namespace hardening is deliberately not enabled by this generic
+# user unit. PrivateUsers/ProtectSystem/ReadWritePaths require host-specific
+# unprivileged user-namespace qualification; see the setup guide.

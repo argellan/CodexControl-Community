@@ -1,0 +1,10 @@
+// Fresh-process TEST_ONLY recovered runtime; source observations are synthetic and no installed service starts.
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import {pathToFileURL} from 'node:url';
+const root=process.argv[2],pointer=JSON.parse(await fs.readFile(path.join(root,'installation.json'))),target=pointer.appDirectory,data=path.join(root,'data');
+const [{Administration},{ConfigurationStore},{FleetHub},{DEFAULT_CONFIGURATION},{createServer}]=await Promise.all([import(pathToFileURL(path.join(target,'lib/administration.mjs'))),import(pathToFileURL(path.join(target,'lib/configuration.mjs'))),import(pathToFileURL(path.join(target,'lib/fleet.mjs'))),import(pathToFileURL(path.join(target,'public/settings-schema.mjs'))),import(pathToFileURL(path.join(target,'server.mjs')))]);
+await Administration.inspect({directory:path.join(data,'administration')});const administration=await Administration.open({directory:path.join(data,'administration')}),security=await administration.state(),configuration=await ConfigurationStore.open({directory:path.join(data,'configuration'),initial:DEFAULT_CONFIGURATION}),deploymentState=await configuration.read(),hub=await FleetHub.open({directory:path.join(data,'history'),hosts:security.hosts});
+const server=createServer({hub,configuration,administration,securityState:security,viewers:security.viewers,deploymentState,instanceId:security.instanceId,preferencesDirectory:path.join(data,'profiles'),readSnapshot:async()=>({observedAt:new Date().toISOString(),host:{id:'test-only-hub',name:'TEST_ONLY recovered hub'},sessions:[],events:[],coverage:{completeHistory:false}})});
+await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));process.send({ready:true,port:server.address().port,schemaVersion:security.schemaVersion});
+process.on('message',message=>{if(message==='close'){server.closeAllConnections();server.close(()=>process.exit(0));}});process.on('disconnect',()=>{server.closeAllConnections();server.close(()=>process.exit(0));});

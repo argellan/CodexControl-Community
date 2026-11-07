@@ -1,0 +1,7 @@
+{
+  "listen": "127.0.0.1",
+  "syntheticDiagnostics": {
+    "mode": "synthetic-only",
+    "receiverPort": 4319
+  }
+}

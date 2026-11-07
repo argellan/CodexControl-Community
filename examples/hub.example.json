@@ -1,0 +1,10 @@
+{
+  "instanceId": "GENERATED_BY_SETUP",
+  "instanceName": "My Codex Control",
+  "listen": "127.0.0.1",
+  "port": 4317,
+  "publicOrigin": "http://127.0.0.1:4317",
+  "dataDirectory": "ABSOLUTE_PRIVATE_INSTANCE_DATA_DIRECTORY",
+  "hosts": [],
+  "viewers": [{"id":"owner","label":"Instance owner","role":"admin","tokenHash":null,"hostIds":null,"projectIds":null}]
+}

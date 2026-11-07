@@ -1,0 +1,11 @@
+{
+  "hostId": "my-laptop",
+  "url": "https://dashboard.example.com:4317",
+  "token": null,
+  "expectedInstanceId": "GENERATED_BY_SETUP",
+  "expectedHostname": "MY-LAPTOP",
+  "intervalMs": 2000,
+  "desktopCompanion": {
+    "enabled": false
+  }
+}

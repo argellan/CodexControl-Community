@@ -1,0 +1,19 @@
+// Author: Bishop Crockett
+// Owner: Argellan.com
+// License: MIT
+// SPDX-License-Identifier: MIT
+// Attribution covers ARGELLAN-authored implementation and modifications only.
+// Upstream credits and licenses remain in THIRD_PARTY_NOTICES.md.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import {DesktopExecutableResolver} from '../lib/codex-executable.mjs';
+import {CodexAccountObserver} from '../lib/codex-account-observer.mjs';
+async function fixture(run){const directory=await fs.mkdtemp(path.join(os.tmpdir(),'cc-exe-TEST_ONLY-'));try{const root=path.join(directory,'OpenAI','Codex','bin');await fs.mkdir(root,{recursive:true});const add=async(name,bytes='TEST_ONLY')=>{const exe=path.join(root,name,'codex.exe');await fs.mkdir(path.dirname(exe),{recursive:true});await fs.writeFile(exe,bytes);return exe;};await run({directory,root,add,missing:path.join(root,'0000000000000000','codex.exe')});}finally{assert.ok(path.basename(directory).startsWith('cc-exe-TEST_ONLY-'));await fs.rm(directory,{recursive:true,force:true});}}
+test('removed version resolves a signed replacement, skips incomplete dirs and caches unchanged signature',()=>fixture(async({directory,root,add,missing})=>{let calls=0;const exe=await add('1111111111111111');await fs.mkdir(path.join(root,'2222222222222222'));const r=new DesktopExecutableResolver({platform:'win32',localAppData:directory,verify:async()=>{calls++;return true;}});assert.equal(await r.resolve(missing),exe);assert.equal(await r.resolve(missing),exe);assert.equal(calls,1);await fs.writeFile(exe,'TEST_ONLY_REPLACED');assert.equal(await r.resolve(missing),exe);assert.equal(calls,2);await fs.unlink(exe);await assert.rejects(r.resolve(missing));}));
+test('unsigned/untrusted replacements and arbitrary configured roots fail closed',()=>fixture(async({directory,add,missing})=>{await add('1111111111111111');let calls=0;const r=new DesktopExecutableResolver({platform:'win32',localAppData:directory,verify:async()=>{calls++;return false;}});await assert.rejects(r.resolve(missing));assert.equal(calls,1);await assert.rejects(r.resolve(path.join(directory,'elsewhere','codex.exe')));assert.equal(calls,1);}));
+test('junction escape cannot reach signature verification or execution',()=>fixture(async({directory,root,missing})=>{const outside=path.join(directory,'outside');await fs.mkdir(outside);await fs.writeFile(path.join(outside,'codex.exe'),'TEST_ONLY');await fs.symlink(outside,path.join(root,'1111111111111111'),process.platform==='win32'?'junction':'dir');let calls=0;const r=new DesktopExecutableResolver({platform:'win32',localAppData:directory,verify:async()=>{calls++;return true;}});await assert.rejects(r.resolve(missing));assert.equal(calls,0);}));
+test('signature lookup shares the deadline and an aborted discovery cannot return a cached executable',()=>fixture(async({directory,add,missing})=>{await add('1111111111111111');let now=0,budget;const r=new DesktopExecutableResolver({platform:'win32',localAppData:directory,clock:()=>now,verify:async(_exe,options)=>{budget=options.timeoutMs;now=100;return true;}});await assert.rejects(r.resolve(missing,{timeoutMs:80}));assert.equal(budget,80);const a=new AbortController();a.abort();await assert.rejects(r.resolve(missing,{signal:a.signal}));}));
+test('stopping during discovery prevents native launch and no model/identity mutation is dispatched',async()=>{let resume,spawns=0;const observer=new CodexAccountObserver({enabled:true,executable:path.join(os.tmpdir(),'TEST_ONLY','codex.exe'),followDesktopUpdates:true},{executableResolver:{resolve:()=>new Promise(r=>resume=r)},spawnProcess:()=>{spawns++;throw new Error('must not execute');}});const pending=observer.poll();observer.stop();resume(path.join(os.tmpdir(),'signed-TEST_ONLY.exe'));await pending;assert.equal(spawns,0);});

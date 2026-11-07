@@ -1,0 +1,21 @@
+{
+  "name": "codexcontrol-source-checks",
+  "private": true,
+  "description": "Development checks only; the hub and collector have no npm runtime dependencies.",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "lint": "node --max-old-space-size=256 scripts/lint.mjs",
+    "lint:python": "python -m ruff check scripts",
+    "lint:sql": "python -m sqlfluff lint --dialect postgres --rules AM04,AM07,AM08,CV11,RF01 scripts/archive-timescale.sql",
+    "lint:powershell": "pwsh -NoLogo -NoProfile -File scripts/lint-powershell.ps1",
+    "lint:shell": "node scripts/lint-shell.mjs",
+    "test": "node --max-old-space-size=256 --test --test-concurrency=1 tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.13.0",
+    "globals": "17.13.0",
+    "html-validate": "11.17.0",
+    "stylelint": "17.16.0"
+  }
+}

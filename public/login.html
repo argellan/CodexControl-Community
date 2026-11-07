@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<!--
+Author: Bishop Crockett
+Owner: Argellan.com
+License: MIT
+SPDX-License-Identifier: MIT
+Attribution covers ARGELLAN-authored implementation and modifications only.
+Upstream credits and licenses remain in THIRD_PARTY_NOTICES.md.
+-->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ARGELLAN / Sign in</title><link rel="icon" href="/assets/argellan-symbol.svg" type="image/svg+xml"><link rel="stylesheet" href="/app.css"><link rel="stylesheet" href="/settings-workspace.css"></head>
+<body><main class="login account-login"><div class="brand"><img class="brand-symbol" src="/assets/argellan-symbol.svg" alt=""><img class="brand-wordmark" src="/assets/argellan-wordmark.svg" alt="ARGELLAN"><span class="brand-title">CODEX CONTROL</span></div><h1>Sign in to CodexControl</h1><p>Welcome back.</p>
+<section id="password-login-panel" aria-labelledby="account-login-heading"><h2 id="account-login-heading">Username &amp; password</h2><p id="password-login-note" role="status">Checking account sign-in availabilityâ€¦</p><a id="hub-login-link" class="login-hub-link" hidden>Open username &amp; password sign-in â†—</a><p id="hub-login-address" class="note" hidden></p><form id="account-login-form" hidden><label for="username">Username</label><input id="username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="64" value="admin" required><label for="account-password">Password</label><input id="account-password" name="password" type="password" autocomplete="current-password" maxlength="256" required><button type="submit" disabled>Sign in</button><p id="account-login-status" role="status" aria-live="polite"></p></form></section>
+<details id="key-login-panel"><summary>Advanced: access key</summary><form id="login-form"><label for="access-key">Viewer or administrator access key</label><!-- html-validate-disable autocomplete-password -- Access keys use a separate flow without password autofill. --><input id="access-key" name="access-key" type="password" autocomplete="off" required><!-- html-validate-enable autocomplete-password --><button type="submit">Sign in with key</button><p id="login-status" role="status" aria-live="polite"></p></form><p>Use your private access package. Collector credentials have separate permissions.</p></details></main><script type="module" src="/login.js"></script></body></html>

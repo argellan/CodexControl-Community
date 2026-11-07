@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CodexControl local synthetic report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "consentSchemaVersion", "reportId", "origin", "applicationVersion", "class", "category", "count", "latencyBucket", "memoryBucket"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "consentSchemaVersion": {"const": 1},
+    "reportId": {"type": "string", "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$", "maxLength": 36},
+    "origin": {"const": "synthetic"},
+    "applicationVersion": {"const": "1.2.0"},
+    "class": {"enum": ["browser", "backend"]},
+    "category": {"enum": ["unexpected", "request-failed", "collection-failed", "unhandled-rejection", "unclean-shutdown"]},
+    "count": {"type": "integer", "minimum": 1, "maximum": 100},
+    "latencyBucket": {"enum": ["unknown", "under-100ms", "100-1000ms", "over-1000ms"]},
+    "memoryBucket": {"enum": ["unknown", "under-128MiB", "128-512MiB", "over-512MiB"]}
+  }
+}

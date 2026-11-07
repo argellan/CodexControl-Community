@@ -1,0 +1,36 @@
+# Author: Bishop Crockett
+# Owner: Argellan.com
+# License: MIT
+# SPDX-License-Identifier: MIT
+# Attribution covers ARGELLAN-authored implementation and modifications only.
+# Upstream credits and licenses remain in THIRD_PARTY_NOTICES.md.
+.local/
+node_modules/
+coverage/
+dist/
+.env
+.env.*
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.db
+*.db-wal
+*.db-shm
+*.duckdb
+*.duckdb.wal
+*.duckdb.tmp/
+__pycache__/
+*.outbox
+*.outbox.tmp
+*.log
+*.key
+*.pem
+*.pfx
+*.p12
+hub.json
+collector.json
+owner-access.json
+installation.json
+setup-receipt.json
+enrollment/
+instance-data/

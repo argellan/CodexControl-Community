@@ -1,0 +1,18 @@
+# Author: Bishop Crockett
+# Owner: Argellan.com
+# License: MIT
+# SPDX-License-Identifier: MIT
+# Attribution covers ARGELLAN-authored implementation and modifications only.
+# Upstream credits and licenses remain in THIRD_PARTY_NOTICES.md.
+# Example only; not enabled or associated with a configured receiver.
+[Unit]
+Description=Run the CodexControl usage archive sender every minute
+
+[Timer]
+OnCalendar=minutely
+AccuracySec=1s
+Persistent=true
+Unit=archive-sender.service
+
+[Install]
+WantedBy=timers.target

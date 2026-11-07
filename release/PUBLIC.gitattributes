@@ -1,0 +1,8 @@
+# Author: Bishop Crockett
+# Owner: Argellan.com
+# License: MIT
+# SPDX-License-Identifier: MIT
+# Attribution covers ARGELLAN-authored implementation and modifications only.
+# Upstream credits and licenses remain in THIRD_PARTY_NOTICES.md.
+# Preserve the exact exported bytes so SHA256SUMS also verifies fresh clones.
+* -text

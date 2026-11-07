@@ -1,0 +1,70 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {fork} from 'node:child_process';
+import {randomUUID} from 'node:crypto';
+import {fileURLToPath} from 'node:url';
+import {fixture} from './fixtures/authority-fixture.mjs';
+import {FreshActorChecks,BrokerActorIdentities,ActorCheckedAuthority} from '../broker/actor-channel.mjs';
+import {ControlAuthority} from '../broker/authority.mjs';
+import {ControlError} from '../lib/errors.mjs';
+import {HostPolicy} from '../host/policy.mjs';
+import {PassThrough} from 'node:stream';
+import {generateKeyPairSync} from 'node:crypto';
+import {ActorAssertionIssuer} from '../broker/actor-channel.mjs';
+import {createControlFacade} from '../../lib/control-facade.mjs';
+const denied=callback=>assert.rejects(callback,error=>error instanceof ControlError);
+const refused=callback=>assert.throws(callback,error=>error instanceof ControlError);
+async function actorPipe(f){
+  const child=fork(fileURLToPath(new URL('./fixtures/actor-issuer-child.mjs',import.meta.url)),[],{execArgv:['--max-old-space-size=64'],windowsHide:true,stdio:['pipe','pipe','ignore','ipc']});
+  let exited=false;const ended=new Promise(resolve=>child.once('exit',()=>{exited=true;resolve();}));
+  let wrapper,checks,mirror,core;
+  f.addCleanup(async()=>{wrapper?.close();checks?.close();mirror?.close();core?.close();if(!exited)child.kill('SIGKILL');await ended;});
+  const next=type=>new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('TEST_ONLY child message deadline')),5000);const listener=message=>{if(message.type!==type&&message.type!=='FAILED')return;clearTimeout(timer);child.off('message',listener);message.type==='FAILED'?reject(new Error('TEST_ONLY child initialization failed')):resolve(message);};child.on('message',listener);child.once('error',reject);});
+  const ready=next('READY');child.send({users:f.users,hubId:f.store.state().hubId});const boot=await ready;
+  const audienceId=randomUUID(),brokerEpoch=randomUUID();checks=new FreshActorChecks({readable:child.stdout,writable:child.stdin,hubId:f.store.state().hubId,audienceId,brokerEpoch,hubPublicKey:boot.publicKey});
+  mirror=new BrokerActorIdentities({checks});core=new ControlAuthority({store:f.store,identities:mirror,connections:f.connections,privateKey:f.brokerKey.privateKey});
+  wrapper=new ActorCheckedAuthority({authority:core,identities:mirror,checks});
+  const policy=new HostPolicy({hostId:f.hostId,hostGeneration:1,projectId:f.projectId,entityRevision:1,brokerPublicKey:f.brokerPublicKey,root:f.root,lease:f.lease,connection:()=>({connected:true,hostId:f.hostId,hostGeneration:1,connectionEpoch:f.connectionEpoch}),now:Date.now});f.addCleanup(()=>policy.close());
+  return {child,credential:boot.credential,checks,mirror,wrapper,policy,publicKey:boot.publicKey,brokerEpoch,audienceId,next};
+}
+test('fresh named actor assertions cross real inherited child pipes for issue and consume; logout cannot reuse admission authority',{timeout:20000},async t=>{
+  const f=await fixture(t),p=await actorPipe(f),operation=f.operation();
+  const assertion=await p.wrapper.issue(p.credential,{operation,stage:'DISPATCH',connection:f.connection});
+  const permit=await p.wrapper.consume(assertion);const receipt=p.policy.acceptPermit({assertion,permit,operation,stage:'DISPATCH'});
+  assert.equal(receipt.authorized,true);assert.equal(receipt.nativeExecutionAllowed,false);
+  await denied(()=>p.wrapper.consume(assertion));
+  const pending=await p.wrapper.issue(p.credential,{operation:f.operation(),stage:'PUBLICATION',connection:f.connection});
+  const loggedOut=p.next('LOGGED_OUT');p.child.send({type:'LOGOUT'});await loggedOut;
+  await denied(()=>p.wrapper.consume(pending));assert.equal(f.journal.status().records,0);
+});
+test('actor pipe proofs bind operation, stage, broker epoch and challenge; malformed credential cannot poison sequence',{timeout:20000},async t=>{
+  const f=await fixture(t),p=await actorPipe(f),operation=f.operation();
+  refused(()=>p.checks.check('bad',{operation,stage:'DISPATCH'}));
+  const proof=await p.checks.check(p.credential,{operation,stage:'DISPATCH'});
+  refused(()=>p.checks.verify(proof,{operation:f.operation(),stage:'DISPATCH'}));
+  refused(()=>p.checks.verify(proof,{operation,stage:'PUBLICATION'}));
+  refused(()=>p.checks.verify(proof,{operation,stage:'DISPATCH',challengeId:randomUUID()}));
+  let calls=0;p.mirror.run(p.credential,proof,{operation,stage:'DISPATCH'},()=>{calls++;assert.equal(p.mirror.authenticate(p.credential).viewerId,'alice');});
+  refused(()=>p.mirror.run(p.credential,proof,{operation,stage:'DISPATCH'},()=>calls++));assert.equal(calls,1);
+  refused(()=>p.mirror.authenticate(p.credential));
+  const assertion=await p.wrapper.issue(p.credential,{operation,stage:'DISPATCH',connection:f.connection});
+  p.child.kill('SIGKILL');await new Promise(resolve=>p.child.once('exit',resolve));await denied(()=>p.wrapper.consume(assertion));
+});
+
+test('facade integrates the asynchronous actor adapter and rechecks logout after its final awaited permit',{timeout:15000},async t=>{
+  const f=await fixture(t),hubKey=generateKeyPairSync('ed25519'),outbound=new PassThrough(),inbound=new PassThrough();
+  const issuer=new ActorAssertionIssuer({identities:f.identities,privateKey:hubKey.privateKey,hubId:f.store.state().hubId,now:f.now});
+  issuer.attachInheritedPipe({readable:inbound,writable:outbound});
+  const checks=new FreshActorChecks({readable:outbound,writable:inbound,hubId:f.store.state().hubId,audienceId:randomUUID(),brokerEpoch:randomUUID(),hubPublicKey:hubKey.publicKey.export({format:'der',type:'spki'}).toString('base64'),now:f.now});
+  const mirror=new BrokerActorIdentities({checks,now:f.now}),core=new ControlAuthority({store:f.store,identities:mirror,connections:f.connections,privateKey:f.brokerKey.privateKey,now:f.now}),authority=new ActorCheckedAuthority({authority:core,identities:mirror,checks,now:f.now});
+  f.addCleanup(()=>{authority.close();issuer.close();core.close();});
+  const hostCheck=({assertion,operation,stage})=>f.policy.verifyAssertion({assertion,operation,stage});
+  const facade=createControlFacade({enabled:true,authority,identities:f.identities,journal:f.journal,hostCheck}),operation=f.operation();
+  assert.equal((await facade.admit({credential:f.aliceSession.credential,operation,connection:f.connection})).operation.state,'ADMITTED');
+  const proof=await facade.authorize({credential:f.aliceSession.credential,operation,connection:f.connection,stage:'DISPATCH'});
+  assert.equal(f.policy.acceptPermit({...proof,operation,stage:'DISPATCH'}).nativeExecutionAllowed,false);
+  let writes=0;await facade.publish({credential:f.aliceSession.credential,operation,connection:f.connection,write:()=>{writes++;}});assert.equal(writes,1);
+  const delayed={issue:(...args)=>authority.issue(...args),consume:async assertion=>{const permit=await authority.consume(assertion);f.access.revokeCookie(f.aliceSession.cookie);return permit;}};
+  const publication=createControlFacade({enabled:true,authority:delayed,identities:f.identities,journal:f.journal,hostCheck});
+  await denied(()=>publication.publish({credential:f.aliceSession.credential,operation,connection:f.connection,write:()=>{writes++;}}));assert.equal(writes,1);
+});

@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1580 300">
+                            <defs>
+                                <!-- Brushed Forged Steel Gradient -->
+                                <linearGradient id="arg-steel-grad" x1="0%" y1="0%" x2="15%" y2="100%">
+                                    <stop offset="0%" stop-color="#ECEEEF"></stop>
+                                    <stop offset="22%" stop-color="#C7C9CC"></stop>
+                                    <stop offset="50%" stop-color="#9B9E9F"></stop>
+                                    <stop offset="78%" stop-color="#76797B"></stop>
+                                    <stop offset="100%" stop-color="#585B5D"></stop>
+                                </linearGradient>
+
+                                <!-- Top Light Chisel Bevel -->
+                                <linearGradient id="arg-bevel-light" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.88"></stop>
+                                    <stop offset="45%" stop-color="#D0D3D6" stop-opacity="0.3"></stop>
+                                    <stop offset="100%" stop-color="#1E2022" stop-opacity="0.85"></stop>
+                                </linearGradient>
+
+                                <!-- Deep Ruby Red Triangle Gradient -->
+                                <linearGradient id="arg-crimson-grad" x1="20%" y1="0%" x2="80%" y2="100%">
+                                    <stop offset="0%" stop-color="#DE1A24"></stop>
+                                    <stop offset="50%" stop-color="#9A0B13"></stop>
+                                    <stop offset="100%" stop-color="#4A0307"></stop>
+                                </linearGradient>
+
+                                <!-- Subtle Metallic Distress / Brushed Grain Filter -->
+                                <filter id="arg-metal-grain" x="-5%" y="-5%" width="110%" height="110%">
+                                    <feTurbulence type="fractalNoise" baseFrequency="0.045 0.14" numOctaves="4" seed="11" result="noise"></feTurbulence>
+                                    <feColorMatrix type="matrix" values="
+                                        0 0 0 0 0.62
+                                        0 0 0 0 0.63
+                                        0 0 0 0 0.64
+                                        0 0 0 0.16 0" in="noise" result="coloredNoise"></feColorMatrix>
+                                    <feComposite operator="in" in="coloredNoise" in2="SourceGraphic" result="textured"></feComposite>
+                                    <feBlend mode="overlay" in="textured" in2="SourceGraphic" result="finalMetal"></feBlend>
+                                </filter>
+
+                                <!-- Crisp Industrial Drop Shadow -->
+                                <filter id="arg-drop-shadow" x="-10%" y="-10%" width="120%" height="125%">
+                                    <feDropShadow dx="2" dy="4" stdDeviation="2.5" flood-color="#000000" flood-opacity="0.68"></feDropShadow>
+                                </filter>
+                            </defs>
+
+                            <!-- MASTER TYPOGRAPHY GROUP -->
+                            <g filter="url(#arg-drop-shadow)">
+                                <!-- METALLIC STEEL LETTERS -->
+                                <g fill="url(#arg-steel-grad)" stroke="#232527" stroke-width="2.5" stroke-linejoin="miter" filter="url(#arg-metal-grain)">
+                                    
+                                    <!-- 1. First 'A' -->
+                                    <path d="M 126 38 L 42 182 L 73 182 L 126 88 L 179 182 L 210 182 Z"></path>
+
+                                    <!-- 2. Letter 'R' -->
+                                    <path fill-rule="evenodd" d="
+                                        M 271 46 
+                                        L 360 46 
+                                        Q 394 46 394 89 
+                                        Q 394 128 358 131 
+                                        L 399 182 
+                                        L 365 182 
+                                        L 326 132 
+                                        L 297 132 
+                                        L 297 182 
+                                        L 271 182 
+                                        Z 
+                                        M 297 70 
+                                        L 354 70 
+                                        Q 368 70 368 89 
+                                        Q 368 109 354 109 
+                                        L 297 109 
+                                        Z"></path>
+
+                                    <!-- 3. Letter 'G' -->
+                                    <path d="
+                                        M 594 46 
+                                        L 585 70 
+                                        L 504 70 
+                                        Q 478 70 478 102 
+                                        L 478 126 
+                                        Q 478 158 504 158 
+                                        L 572 158 
+                                        L 572 125 
+                                        L 526 125 
+                                        L 526 101 
+                                        L 598 101 
+                                        L 598 152 
+                                        Q 598 182 560 182 
+                                        L 500 182 
+                                        Q 452 182 452 132 
+                                        L 452 96 
+                                        Q 452 46 500 46 
+                                        Z"></path>
+
+                                    <!-- 4. Letter 'E' -->
+                                    <path d="
+                                        M 669 46 
+                                        L 782 46 
+                                        L 782 70 
+                                        L 695 70 
+                                        L 695 101 
+                                        L 765 101 
+                                        L 765 125 
+                                        L 695 125 
+                                        L 695 158 
+                                        L 782 158 
+                                        L 782 182 
+                                        L 669 182 
+                                        Z"></path>
+
+                                    <!-- 5. First 'L' -->
+                                    <path d="
+                                        M 854 46 
+                                        L 880 46 
+                                        L 880 158 
+                                        L 955 158 
+                                        L 955 182 
+                                        L 854 182 
+                                        Z"></path>
+
+                                    <!-- 6. Second 'L' -->
+                                    <path d="
+                                        M 1022 46 
+                                        L 1048 46 
+                                        L 1048 158 
+                                        L 1123 158 
+                                        L 1123 182 
+                                        L 1022 182 
+                                        Z"></path>
+
+                                    <!-- 7. Second 'A' -->
+                                    <path d="M 1255 38 L 1171 182 L 1202 182 L 1255 88 L 1308 182 L 1339 182 Z"></path>
+
+                                    <!-- 8. Letter 'N' -->
+                                    <path d="
+                                        M 1393 46 
+                                        L 1417 46 
+                                        L 1506 141 
+                                        L 1506 46 
+                                        L 1532 46 
+                                        L 1532 182 
+                                        L 1508 182 
+                                        L 1419 87 
+                                        L 1419 182 
+                                        L 1393 182 
+                                        Z"></path>
+                                </g>
+
+                                <!-- TOP CHISEL HIGHLIGHT OVERLAY (Gives the authentic 3D machined rim) -->
+                                <g fill="none" stroke="url(#arg-bevel-light)" stroke-width="1.6" pointer-events="none" opacity="0.9">
+                                    <path d="M 126 40 L 44.5 180.5 M 126 40 L 207.5 180.5"></path>
+                                    <path d="M 272.5 47.5 L 360 47.5 M 295.5 109.5 L 354 109.5"></path>
+                                    <path d="M 500 47.5 L 592 47.5 M 527.5 102.5 L 596.5 102.5"></path>
+                                    <path d="M 670.5 47.5 L 780.5 47.5 M 695 102.5 L 763.5 102.5 M 695 159.5 L 780.5 159.5"></path>
+                                    <path d="M 855.5 47.5 L 878.5 47.5 M 880 159.5 L 953.5 159.5"></path>
+                                    <path d="M 1023.5 47.5 L 1046.5 47.5 M 1048 159.5 L 1121.5 159.5"></path>
+                                    <path d="M 1255 40 L 1173.5 180.5 M 1255 40 L 1336.5 180.5"></path>
+                                    <path d="M 1394.5 47.5 L 1416.5 47.5 L 1507 143 M 1507.5 47.5 L 1530.5 47.5"></path>
+                                </g>
+
+                                <!-- CRIMSON TRIANGLE CORES (Inside both 'A's) -->
+                                <!-- Left 'A' Crimson Delta -->
+                                <g>
+                                    <polygon points="126,125 94,182 158,182" fill="url(#arg-crimson-grad)" stroke="#220305" stroke-width="2"></polygon>
+                                    <!-- Precision Ruby Inner Facet -->
+                                    <polygon points="126,128 126,180 97,180" fill="#FF3B47" opacity="0.22"></polygon>
+                                    <polyline points="96,180.5 126,127.5 156,180.5" fill="none" stroke="#FF6B75" stroke-width="1" opacity="0.5"></polyline>
+                                </g>
+
+                                <!-- Right 'A' Crimson Delta -->
+                                <g>
+                                    <polygon points="1255,125 1223,182 1287,182" fill="url(#arg-crimson-grad)" stroke="#220305" stroke-width="2"></polygon>
+                                    <!-- Precision Ruby Inner Facet -->
+                                    <polygon points="1255,128 1255,180 1226,180" fill="#FF3B47" opacity="0.22"></polygon>
+                                    <polyline points="1225,180.5 1255,127.5 1285,180.5" fill="none" stroke="#FF6B75" stroke-width="1" opacity="0.5"></polyline>
+                                </g>
+                            </g>
+                        </svg>

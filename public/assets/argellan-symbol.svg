@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+                            <defs>
+                                <!-- Sunlit Left Titanium Wing -->
+                                <linearGradient id="sym-titanium-left" x1="0%" y1="0%" x2="90%" y2="100%">
+                                    <stop offset="0%" stop-color="#F8FAFC"></stop>
+                                    <stop offset="30%" stop-color="#D3D8DE"></stop>
+                                    <stop offset="70%" stop-color="#949BA4"></stop>
+                                    <stop offset="100%" stop-color="#626870"></stop>
+                                </linearGradient>
+
+                                <!-- Shadowed Right Titanium Wing (Creates crisp central ridge line) -->
+                                <linearGradient id="sym-titanium-right" x1="10%" y1="0%" x2="90%" y2="100%">
+                                    <stop offset="0%" stop-color="#CBD2D9"></stop>
+                                    <stop offset="45%" stop-color="#7B828A"></stop>
+                                    <stop offset="85%" stop-color="#52575E"></stop>
+                                    <stop offset="100%" stop-color="#383C42"></stop>
+                                </linearGradient>
+
+                                <!-- Inner Vault Recessed Bevel -->
+                                <linearGradient id="sym-inner-bevel" x1="50%" y1="0%" x2="50%" y2="100%">
+                                    <stop offset="0%" stop-color="#141619"></stop>
+                                    <stop offset="55%" stop-color="#2D3137"></stop>
+                                    <stop offset="100%" stop-color="#5A6068"></stop>
+                                </linearGradient>
+
+                                <!-- Outer Rim Chamfer Bevel -->
+                                <linearGradient id="sym-outer-chamfer" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.9"></stop>
+                                    <stop offset="50%" stop-color="#8A9199" stop-opacity="0.5"></stop>
+                                    <stop offset="100%" stop-color="#191B1E" stop-opacity="0.95"></stop>
+                                </linearGradient>
+
+                                <!-- Crimson Core Left Lit Facet -->
+                                <linearGradient id="sym-ruby-left" x1="20%" y1="0%" x2="90%" y2="100%">
+                                    <stop offset="0%" stop-color="#FF2A38"></stop>
+                                    <stop offset="55%" stop-color="#C8101E"></stop>
+                                    <stop offset="100%" stop-color="#7A060E"></stop>
+                                </linearGradient>
+
+                                <!-- Crimson Core Right Deep Facet -->
+                                <linearGradient id="sym-ruby-right" x1="0%" y1="0%" x2="80%" y2="100%">
+                                    <stop offset="0%" stop-color="#C41220"></stop>
+                                    <stop offset="50%" stop-color="#850710"></stop>
+                                    <stop offset="100%" stop-color="#3D0206"></stop>
+                                </linearGradient>
+
+                                <!-- Ambient Shadow -->
+                                <filter id="sym-ambient-shadow" x="-15%" y="-15%" width="130%" height="135%">
+                                    <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#000000" flood-opacity="0.65"></feDropShadow>
+                                    <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.45"></feDropShadow>
+                                </filter>
+                            </defs>
+
+                            <g filter="url(#sym-ambient-shadow)">
+                                <!-- 1. OUTER CHAMFER BASEPLATE (Machined Armor Rim) -->
+                                <polygon points="256,42 46,434 152,434 256,238 360,434 466,434" fill="#181A1E"></polygon>
+
+                                <!-- 2. LEFT SUNLIT TITANIUM BLADE -->
+                                <!-- Features subtle tactical inner notch at base (144,424 -> 158,398) for architectural poise -->
+                                <polygon points="256,56 58,426 144,426 256,215" fill="url(#sym-titanium-left)"></polygon>
+
+                                <!-- 3. RIGHT SHADOWED TITANIUM BLADE -->
+                                <polygon points="256,56 256,215 368,426 454,426" fill="url(#sym-titanium-right)"></polygon>
+
+                                <!-- 4. INNER VAULT BEVEL WALLS (Adds 3D thickness to the interior 'A' arch) -->
+                                <polygon points="256,215 144,426 162,426 256,248" fill="url(#sym-inner-bevel)"></polygon>
+                                <polygon points="256,215 256,248 350,426 368,426" fill="#1F2227"></polygon>
+
+                                <!-- 5. PRECISION SPECULAR EDGE LINES -->
+                                <!-- Central Apex Spine Ridge -->
+                                <line x1="256" y1="56" x2="256" y2="215" stroke="#FFFFFF" stroke-width="2" stroke-opacity="0.75"></line>
+                                <!-- Outer Left Sunlit Edge -->
+                                <polyline points="144,426 58,426 256,56 454,426" fill="none" stroke="url(#sym-outer-chamfer)" stroke-width="2.5" stroke-linejoin="round"></polyline>
+
+                                <!-- 6. FACETED CRIMSON DELTA CORE -->
+                                <!-- Equidistant parallel negative-space channel between inner vault and delta -->
+                                <g>
+                                    <!-- Outer Dark Crimson Bevel Tray -->
+                                    <polygon points="256,290 182,426 330,426" fill="#260205"></polygon>
+
+                                    <!-- Left Illuminated Ruby Facet -->
+                                    <polygon points="256,298 188,423 256,412" fill="url(#sym-ruby-left)"></polygon>
+
+                                    <!-- Right Deep Ruby Facet -->
+                                    <polygon points="256,298 256,412 324,423" fill="url(#sym-ruby-right)"></polygon>
+
+                                    <!-- Bottom Crimson Base Facet (Gives 3D pyramidal depth) -->
+                                    <polygon points="188,423 256,412 324,423" fill="#470308"></polygon>
+
+                                    <!-- Laser Specular Highlights on Ruby Core -->
+                                    <line x1="256" y1="298" x2="256" y2="412" stroke="#FF7582" stroke-width="1.6" stroke-opacity="0.75"></line>
+                                    <polyline points="189,422 256,299 323,422" fill="none" stroke="#FF4D5E" stroke-width="1.4" stroke-opacity="0.55"></polyline>
+                                </g>
+                            </g>
+                        </svg>

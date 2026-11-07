@@ -1,0 +1,13 @@
+/* Author: Bishop Crockett; Owner: Argellan.com; SPDX-License-Identifier: MIT */
+body.first-sign-in-page{display:block;overflow:auto;height:auto;min-height:100dvh}
+.first-sign-in-page .login{box-sizing:border-box;width:calc(100% - 32px);max-width:480px;margin:clamp(12px,4vh,40px) auto;padding:24px}
+.first-sign-in-page .brand{margin-bottom:16px}
+.first-sign-in-page h1{font-size:1.45rem;line-height:1.25;margin:0 0 12px}
+.first-sign-in-page .login form{gap:9px;margin:18px 0}
+.first-sign-in-page .login input{box-sizing:border-box;min-height:44px;font:inherit}
+.first-sign-in-page .login button{min-height:44px;white-space:normal}
+.first-sign-in-page .show-passwords{display:flex;align-items:center;gap:10px;min-height:44px;cursor:pointer}
+.first-sign-in-page #show-passwords{width:24px;height:24px;min-height:24px;margin:0;padding:0;flex:none}
+.first-sign-in-page #password-guidance{margin:0}
+.first-sign-in-page #setup-status:empty{margin:0}
+@media(max-height:620px){.first-sign-in-page .login{padding:16px;margin:12px auto}.first-sign-in-page .brand{margin-bottom:10px}}

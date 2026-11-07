@@ -1,0 +1,2 @@
+# Optional archive analytics runtime only; hub and collector do not import it.
+duckdb==1.5.6

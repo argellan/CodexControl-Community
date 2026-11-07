@@ -1,0 +1,64 @@
+// Author: Bishop Crockett
+// Owner: Argellan.com
+// License: MIT
+// SPDX-License-Identifier: MIT
+// Attribution covers ARGELLAN-authored implementation and modifications only.
+// Upstream credits and licenses remain in THIRD_PARTY_NOTICES.md.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
+import http from 'node:http';
+import https from 'node:https';
+import os from 'node:os';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
+import {EventEmitter} from 'node:events';
+import * as collector from '../collector.mjs';
+const deploymentId='TEST_ONLY-instance';
+const body={hostId:'test-source',batchId:'TEST_ONLY-batch',observedAt:new Date().toISOString(),sessions:[],events:[],coverage:{}};
+const identity={deploymentId,instanceName:'TEST_ONLY',readOnly:true,protocolVersion:1};
+async function fixture(run,handler){const calls=[],server=http.createServer((req,res)=>{calls.push({url:req.url,method:req.method,authorization:req.headers.authorization});if(handler)return handler(req,res,calls);if(req.url==='/api/identity'){res.setHeader('content-type','application/json');res.end(JSON.stringify(identity));}else if(req.url==='/api/collector'){req.resume();res.end(JSON.stringify({hostId:body.hostId,batchId:body.batchId,added:0}));}else{res.writeHead(404);res.end();}});await new Promise(r=>server.listen(0,'127.0.0.1',r));try{const config={url:`http://127.0.0.1:${server.address().port}`,hostId:body.hostId,token:'TEST_ONLY_collector_credential_32_characters',expectedInstanceId:deploymentId,expectedHostname:os.hostname()};await run(config,calls);}finally{server.closeAllConnections();await new Promise(r=>server.close(r));}}
+
+test('machine identity is checked before any HTTP or credentialed request',()=>fixture(async(config,calls)=>{await assert.rejects(collector.sendBatch({...config,expectedHostname:os.hostname()+'-wrong'},body),/hostname/i);assert.equal(calls.length,0);}));
+test('instance identity probe has no authorization, precedes POST, and permits case-insensitive machine match',()=>fixture(async(config,calls)=>{const ack=await collector.sendBatch({...config,expectedHostname:os.hostname().toUpperCase()},body);assert.equal(ack.batchId,body.batchId);assert.deepEqual(calls.map(c=>c.url),['/api/identity','/api/collector']);assert.equal(calls[0].authorization,undefined);assert.equal(calls[1].authorization,'Bearer '+config.token);}));
+test('wrong hub and non-numeric protocol versions never receive collector credentials',async()=>{
+ for(const changed of [{deploymentId:'OTHER'},{protocolVersion:'1'},{readOnly:false}])await fixture(async(config,calls)=>{await assert.rejects(collector.sendBatch(config,body),/identity|protocol/i);assert.equal(calls.length,1);assert.equal(calls[0].authorization,undefined);},(req,res)=>res.end(JSON.stringify({...identity,...changed})));
+});
+test('identity cache expires after30seconds and is scoped to config/origin/interface and changed expected identity',()=>fixture(async(config,calls)=>{
+ assert.equal((await collector.verifyCollectorIdentity(config,undefined,{now:1000})).verified,true);await collector.verifyCollectorIdentity(config,undefined,{now:2000});assert.equal(calls.length,1);await collector.verifyCollectorIdentity(config,undefined,{now:31001});assert.equal(calls.length,2);await collector.verifyCollectorIdentity({...config},undefined,{now:31002});assert.equal(calls.length,3);await collector.verifyCollectorIdentity(config,'127.0.0.1',{now:31002});assert.equal(calls.length,4);config.expectedInstanceId='OTHER';await assert.rejects(collector.verifyCollectorIdentity(config,undefined,{now:31003}),/identity/);assert.equal(calls.length,5);
+}));
+test('legacy unpinned configurations send no credential or observations',()=>fixture(async(config,calls)=>{delete config.expectedInstanceId;delete config.expectedHostname;assert.equal((await collector.verifyCollectorIdentity(config)).verified,false);await assert.rejects(collector.sendBatch(config,body),/not pinned/i);assert.deepEqual(calls,[]);assert.equal((await collector.pollCollectorConfiguration(config)).supported,false);}));
+test('malformed or oversized identity response fails closed without a POST',async()=>{
+ for(const response of ['not JSON','x'.repeat(9000)])await fixture(async(config,calls)=>{await assert.rejects(collector.sendBatch(config,body),/identity|response|JSON|bound/i);assert.equal(calls.length,1);assert.equal(calls[0].authorization,undefined);},(req,res)=>res.end(response));
+});
+test('identity timeout remains retryable without credential transmission',()=>fixture(async(config,calls)=>{await assert.rejects(collector.sendBatch({...config,timeoutMs:25},body),e=>e.code==='ETIMEDOUT');assert.equal(calls.length,1);assert.equal(calls[0].authorization,undefined);},req=>req.resume()));
+test('inline CA is passed to verified HTTPS transport without disabling TLS checks',async t=>{
+ let captured; t.mock.method(https,'request',(url,options,callback)=>{captured={url,options};const request=new EventEmitter();request.end=()=>queueMicrotask(()=>{const response=new EventEmitter();response.statusCode=200;callback(response);response.emit('data',Buffer.from(JSON.stringify(identity)));response.emit('end');});request.destroy=error=>request.emit('error',error);return request;});
+ const result=await collector.verifyCollectorIdentity({url:'https://dashboard.example.com',expectedInstanceId:deploymentId,caPem:'TEST_ONLY_INLINE_CA',hostId:'test-source'});assert.equal(result.verified,true);assert.equal(captured.options.ca,'TEST_ONLY_INLINE_CA');assert.equal(captured.options.rejectUnauthorized,true);assert.equal(captured.options.headers.authorization,undefined);assert.equal(captured.options.method,'GET');
+});
+test('configuration polling follows identity, authenticates only collector endpoint, and caches unchanged revision',()=>fixture(async(config,calls)=>{
+ const first=await collector.pollCollectorConfiguration(config,{now:1000}),second=await collector.pollCollectorConfiguration(config,{now:2000});assert.equal(first.revision,2);assert.equal(first.changed,true);assert.equal(second.changed,false);assert.equal(second.sources[0].hostId,config.hostId);assert.deepEqual(calls.map(c=>c.url),['/api/identity','/api/collector/config']);assert.equal(calls[0].authorization,undefined);assert.equal(calls[1].authorization,'Bearer '+config.token);
+},(req,res)=>res.end(JSON.stringify(req.url==='/api/identity'?identity:{revision:2,managed:true,sources:[{id:'test-logs',hostId:'test-source',kind:'codex-log',path:'/TEST_ONLY/sessions',intervalMs:1000,enabled:true}]}))));
+test('foreign-host sources, command fields and credential paths are rejected from configuration',async()=>{
+ for(const source of [{id:'bad',hostId:'other',kind:'job-feed',path:'/TEST_ONLY/jobs',intervalMs:1000,enabled:true},{id:'bad',hostId:'test-source',kind:'job-feed',path:'/TEST_ONLY/jobs',intervalMs:1000,enabled:true,command:'not allowed'},{id:'bad',hostId:'test-source',kind:'codex-log',path:'/TEST_ONLY/auth.json',intervalMs:1000,enabled:true}])await fixture(async config=>await assert.rejects(collector.pollCollectorConfiguration(config),/configuration|source/i),(req,res)=>res.end(JSON.stringify(req.url==='/api/identity'?identity:{revision:2,managed:true,sources:[source]})));
+});
+test('unsupported legacy configuration endpoint preserves existing local source configuration',()=>fixture(async(config,calls)=>{config.jobFile='/TEST_ONLY/original';const result=await collector.pollCollectorConfiguration(config);assert.equal(result.supported,false);assert.equal(result.sources,null);assert.equal(config.jobFile,'/TEST_ONLY/original');assert.equal(calls.length,2);},(req,res)=>{if(req.url==='/api/identity')res.end(JSON.stringify(identity));else{res.writeHead(503);res.end('not supported');}}));
+test('source application passes authoritative empty/native sources and allows execution job files only from job-feed',()=>{
+ const applied=[],native={hostId:'test-source'};collector.applyCollectorSources(native,[],{configureObservation:s=>applied.push(s)});assert.deepEqual(applied,[[]]);const target={hostId:'test-source',role:'execution-target',jobFile:'/TEST_ONLY/old'};collector.applyCollectorSources(target,[{id:'job',hostId:'test-source',kind:'job-feed',path:'/TEST_ONLY/new',intervalMs:1000,enabled:true}]);assert.equal(target.jobFile,'/TEST_ONLY/new');collector.applyCollectorSources(target,[]);assert.equal(target.jobFile,undefined);assert.throws(()=>collector.applyCollectorSources(target,[{id:'logs',hostId:'test-source',kind:'codex-log',path:'/TEST_ONLY/not-a-job',intervalMs:1000,enabled:true}]),/execution|unsupported/i);
+});
+
+test('unmanaged revision zero preserves local source policy and cannot claim an applied configuration',()=>fixture(async config=>{const result=await collector.pollCollectorConfiguration(config);assert.equal(result.supported,true);assert.equal(result.managed,false);assert.equal(result.revision,0);assert.deepEqual(result.sources,[]);},(req,res)=>res.end(JSON.stringify(req.url==='/api/identity'?identity:{revision:0,managed:false,sources:[]}))));
+test('oversized batches are refused before any identity or credential request',()=>fixture(async(config,calls)=>{await assert.rejects(collector.sendBatch(config,{...body,events:Array.from({length:501},()=>({}))}),/bound/);assert.equal(calls.length,0);}));
+
+async function runManagedOnce(role){
+ const directory=await fs.mkdtemp(path.join(os.tmpdir(),'cc-collector-identity-TEST_ONLY-')),calls=[];let received,server;
+ try{
+  const root=path.join(directory,'logs'),nested=path.join(root,'TEST_ONLY','nested'),old=path.join(directory,'old-logs'),jobFile=path.join(directory,'jobs.jsonl');await fs.mkdir(nested,{recursive:true});await fs.mkdir(old);const at=new Date().toISOString();await fs.writeFile(path.join(nested,'fixture.jsonl'),JSON.stringify({type:'session_meta',payload:{id:'TEST_ONLY-session',cwd:'/TEST_ONLY/project',timestamp:at}})+'\n'+JSON.stringify({type:'event_msg',timestamp:at,payload:{type:'task_started',turn_id:'TEST_ONLY-turn'}})+'\n');await fs.writeFile(jobFile,JSON.stringify({id:'TEST_ONLY-record',type:'job_started',at,jobId:'TEST_ONLY-job',project:'TEST_ONLY',label:'TEST_ONLY job'})+'\n');
+  server=http.createServer((req,res)=>{calls.push({path:req.url,authorization:req.headers.authorization});if(req.url==='/api/identity'){res.end(JSON.stringify(identity));return;}if(req.url==='/api/collector/config'){res.end(JSON.stringify({revision:7,managed:true,sources:[{id:'test-managed',hostId:'test-source',kind:role==='execution-target'?'job-feed':'codex-log',path:role==='execution-target'?jobFile:root,intervalMs:1000,enabled:true}]}));return;}if(req.url==='/api/collector'){let data='';req.on('data',chunk=>data+=chunk);req.on('end',()=>{received=JSON.parse(data);res.end(JSON.stringify({hostId:received.hostId,batchId:received.batchId,added:received.events.length,...(Object.hasOwn(received,'usageSamples')?{usageSamplesCount:received.usageSamples.length,usageSamplesSha256:crypto.createHash('sha256').update(JSON.stringify(received.usageSamples)).digest('hex')}:{})}));});return;}res.writeHead(404);res.end();});await new Promise(r=>server.listen(0,'127.0.0.1',r));const config={url:`http://127.0.0.1:${server.address().port}`,hostId:'test-source',token:'TEST_ONLY_collector_credential_32_characters',expectedInstanceId:deploymentId,expectedHostname:os.hostname(),role,sessionRoot:old,jobFile:path.join(directory,'unconfigured.jsonl')},file=path.join(directory,'collector.json');await fs.writeFile(file,JSON.stringify(config));
+  await promisify(execFile)(process.execPath,[path.resolve('collector.mjs'),file,'--once'],{timeout:5000,windowsHide:true});assert.equal(received.coverage.identityVerified,true);assert.equal(received.coverage.configurationRevision,7);assert.equal(received.coverage.configurationManaged,true);assert.equal(received.events.length,1);assert.equal(received.events[0].kind,role==='execution-target'?'remote.start':'turn');assert.deepEqual(calls.map(c=>c.path),['/api/identity','/api/collector/config','/api/collector']);assert.equal(calls[0].authorization,undefined);assert.ok(calls.slice(1).every(c=>c.authorization==='Bearer '+config.token));await assert.rejects(fs.access(file+'.outbox'));
+ }finally{if(server){server.closeAllConnections();await new Promise(r=>server.close(r));}const resolved=path.resolve(directory);assert.ok(path.dirname(resolved)===path.resolve(os.tmpdir())&&path.basename(resolved).startsWith('cc-collector-identity-TEST_ONLY-'));await fs.rm(resolved,{recursive:true,force:true});}
+}
+test('execution-target once applies authenticated job-feed policy and reports only successfully applied revision',()=>runManagedOnce('execution-target'));
+test('native once reads nested enrolled Codex logs and exits without persistent recursive watcher handles',()=>runManagedOnce('codex-source'));

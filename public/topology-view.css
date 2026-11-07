@@ -1,0 +1,117 @@
+/*
+ * Author: Bishop Crockett
+ * Owner: Argellan.com
+ * License: MIT
+ * SPDX-License-Identifier: MIT
+ * Attribution covers ARGELLAN-authored implementation and modifications only.
+ * Upstream credits and licenses remain in THIRD_PARTY_NOTICES.md.
+ */
+/* A spatial evidence map. Only event-triggered Canvas markers move. */
+.activity-map-mode #flow-stats,.activity-map-mode .view-key{display:none}
+.activity-map-mode .panel-heading h1{font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.activity-map-mode #flow-summary{display:none}
+.activity-map-mode .panel-heading{gap:8px;min-height:43px;padding-block:6px;flex-wrap:nowrap}
+.activity-map-mode .panel-heading>div:first-child{min-width:0;flex:1}
+.activity-map-mode #flow-summary{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:29rem}
+.activity-map-mode .presence-strip{border:0;padding:0;gap:3px;background:none;flex:0 0 auto;min-height:0;margin:0}
+.activity-map-mode #jona-presence{padding:2px 4px;gap:4px;background:none;min-height:28px;border:0}
+.activity-map-mode #jona-presence>b,.activity-map-mode #jona-presence>span:not(.jona-placeholder):not(.presence-unavailable){display:none}
+.activity-map-mode #jona-presence .presence-unavailable{font-size:.58rem}
+.activity-map-mode .jona-placeholder{width:23px;height:23px;font-size:.75rem}
+.activity-map-mode #map-tools{gap:3px}
+.activity-map-mode #map-tools button{min-height:28px;padding:3px 6px}
+.activity-map-mode .flow-footer{padding-block:4px;min-height:25px}
+.activity-map-mode .flow-footer .legend{gap:8px;font-size:.55rem}
+.activity-map-mode #integrity{font-size:.54rem}
+.activity-map-mode #signal-spectrum{display:none}
+.activity-map .topology-world,.map-expanded .topology-world{min-width:720px;min-height:420px;background:radial-gradient(ellipse at 44% 48%,color-mix(in srgb,var(--lilac) 6%,transparent),transparent 52%),radial-gradient(ellipse at 85% 50%,color-mix(in srgb,var(--cyan) 5%,transparent),transparent 40%),radial-gradient(circle at 1px 1px,color-mix(in srgb,var(--line) 65%,transparent) 1px,transparent 1.25px);background-size:auto,auto,22px 22px;isolation:isolate}
+.topology-frame{position:relative;overflow:hidden;min-height:1px;min-width:1px}
+.activity-map .topology-world{position:absolute;left:0;top:0;transform-origin:0 0}
+.topology-world[data-overview=true] .station-label>em,.topology-world[data-overview=true] .station-progress{display:none}
+.topology-world[data-overview=true] .topology-density,.topology-world[data-overview=true] .topology-direction-key{display:none}
+.topology-world[data-overview=true] .station-label>b{font-size:calc(.75rem / var(--map-scale));max-width:100%}
+.topology-world[data-overview=true] .station-label>small{display:none}
+.topology-world[data-overview=true] .station-label{width:128px;background:color-mix(in srgb,var(--panel) 95%,transparent)}
+.topology-world[data-overview=true] .topology-station:is(:hover,:focus-visible,.selected) .station-label{width:calc(180px / var(--map-scale));border:1px solid var(--identity);padding:4px 6px}
+.topology-world[data-overview=true] .topology-station:is(:hover,:focus-visible,.selected) .station-label>small,.topology-world[data-overview=true] .topology-station:is(:hover,:focus-visible,.selected) .station-label>em{display:block;font-size:calc(.56rem / var(--map-scale))}
+.topology-world[data-overview=true] .topology-hud{font-size:calc(.66rem / var(--map-scale));height:calc(20px / var(--map-scale))}
+.topology-world[data-overview=true] .topology-hud b{font-size:calc(.8rem / var(--map-scale))}
+.topology-world[data-overview=true] .topology-region{font-size:calc(.62rem / var(--map-scale))}
+.topology-world[data-overview=true] .topology-quiet,.topology-world[data-overview=true] .topology-quiet>b{font-size:calc(.6rem / var(--map-scale))}
+.topology-regions,.topology-stations{position:absolute;inset:0;pointer-events:none}
+.topology-region{position:absolute;top:44px;color:var(--dim);font-size:.55rem;letter-spacing:.06em;white-space:nowrap;opacity:.8}
+.topology-region.sources{left:3%}.topology-region.workers{left:31%}.topology-region.endpoints{right:3%}
+.topology-group{position:absolute;border:1px solid color-mix(in srgb,var(--lilac) 20%,transparent);border-radius:30px;background:color-mix(in srgb,var(--lilac) 2%,transparent)}
+.topology-group>span{position:absolute;top:-10px;left:12px;background:var(--panel);padding:1px 5px;font-size:.55rem;color:var(--muted);max-width:13rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topology-routes{z-index:1;overflow:visible;position:absolute;inset:0;pointer-events:none}
+.topology-route{outline:none;pointer-events:stroke;cursor:pointer}
+.topology-route path{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.topology-route-hit{stroke:transparent;stroke-width:15px;pointer-events:stroke}
+.topology-route-glow{stroke:var(--route);stroke-width:8px;opacity:.09;pointer-events:none}
+.topology-route-line{stroke:var(--route);stroke-width:var(--route-weight,2.2px);opacity:.7;pointer-events:none}
+.topology-arrow{stroke:var(--route);stroke-width:2px;opacity:.85;pointer-events:none}
+.topology-route.return .topology-route-line{stroke-width:1.8px;opacity:.75}
+.topology-route.report .topology-route-line{stroke-dasharray:7 4;stroke-width:2.2px}
+.topology-route.hosting .topology-route-line{stroke:var(--muted);stroke-dasharray:2 6;stroke-width:1.1px;opacity:.35}
+.topology-route.parent .topology-route-line{stroke-width:1.6px;stroke-dasharray:3 4;opacity:.65}
+.topology-route.historical:not(.parent):not(.hosting) .topology-route-line{opacity:.45}
+.topology-route.historical .topology-route-glow{opacity:.04}
+.topology-route.dimmed{opacity:.25}
+.topology-route:hover,.topology-route:focus,.topology-route.selected{opacity:1}
+.topology-route:hover .topology-route-line,.topology-route:focus .topology-route-line,.topology-route.selected .topology-route-line{opacity:1;stroke-width:3px}
+.topology-route:hover .topology-route-glow,.topology-route:focus .topology-route-glow,.topology-route.selected .topology-route-glow{opacity:.2;stroke-width:12px}
+.topology-route-count{pointer-events:none;opacity:.7}
+.topology-route-count rect{fill:var(--panel);stroke:var(--route);stroke-width:1px}
+.topology-route-count text{fill:var(--text);font-family:var(--ui-font);font-size:9px;font-weight:600}
+.topology-route.historical .topology-route-count{opacity:.45}
+.topology-route.return .topology-route-count{opacity:0}
+.topology-route:hover .topology-route-count,.topology-route:focus .topology-route-count,.topology-route.selected .topology-route-count{opacity:1}
+.topology-stations{z-index:3}
+.topology-station{position:absolute;transform:translate(-50%,calc(-1 * var(--station-radius)));width:128px;min-height:0;padding:0;border:0;background:none!important;border-radius:14px;color:var(--text);display:flex;flex-direction:column;align-items:center;gap:3px;pointer-events:auto;overflow:visible;outline-offset:4px;line-height:1.2;text-align:center}
+.station-emblem{position:relative;display:grid;place-items:center;width:calc(var(--station-radius) * 2);height:calc(var(--station-radius) * 2);border:1.5px solid var(--identity);border-radius:14px;background:var(--panel);box-shadow:0 0 0 4px color-mix(in srgb,var(--identity) 7%,transparent),inset 0 0 16px color-mix(in srgb,var(--identity) 10%,transparent);color:var(--identity);flex-shrink:0}
+.topology-station.host .station-emblem{border-radius:9px}.topology-station.subagent .station-emblem{border-style:dashed;border-radius:11px}.topology-station.service .station-emblem{border-radius:50%;background:color-mix(in srgb,var(--identity) 6%,var(--panel))}
+.station-state{position:absolute;width:7px;height:7px;right:-3px;bottom:1px;border:2px solid var(--panel);border-radius:50%;background:var(--dim);box-sizing:content-box}
+.state-online .station-state,.state-recent .station-state{background:var(--green)}.state-offline .station-state,.state-attention .station-state{background:var(--amber)}
+.station-records{position:absolute;right:-10px;top:-7px;display:grid;place-items:center;min-width:17px;height:17px;font-size:9px;background:var(--panel);border:1px solid var(--identity);border-radius:10px;font-weight:500;padding:0 2px;color:var(--text)}
+.station-label{display:flex;flex-direction:column;align-items:center;gap:2px;width:100%;background:color-mix(in srgb,var(--panel) 94%,transparent);border-radius:4px;padding:1px 3px;box-sizing:border-box}
+.station-label>b{font-size:.75rem;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.station-label>small{font-size:.56rem;font-weight:400;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--identity)}
+.station-label>em{font-size:.5rem;font-style:normal;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topology-station:hover,.topology-station:focus-visible,.topology-station.selected{z-index:6}
+.topology-station:hover .station-emblem,.topology-station:focus-visible .station-emblem,.topology-station.selected .station-emblem{box-shadow:0 0 0 4px color-mix(in srgb,var(--identity) 22%,transparent),0 0 22px color-mix(in srgb,var(--identity) 16%,transparent)}
+.topology-station:focus-visible{outline:2px solid var(--identity)}
+.topology-station.state-attention .station-emblem{outline:2px solid var(--amber);outline-offset:3px}
+.station-progress{position:relative;height:13px;width:90px;border:1px solid var(--identity);border-radius:3px;overflow:hidden;background:var(--panel);line-height:11px}
+.station-progress>i{position:absolute;inset:0 auto 0 0;background:color-mix(in srgb,var(--identity) 20%,transparent)}.station-progress>span{position:relative;font-size:9px}
+.topology-world[data-labels=compact] .station-label>em,
+.topology-world[data-labels=compact] .topology-station:is(:hover,:focus-visible,.selected) .station-label>em{display:none}
+.topology-hud{position:absolute;top:8px;left:12px;right:12px;display:flex;align-items:center;gap:12px;height:20px;pointer-events:none;color:var(--muted);font-size:.58rem;z-index:4}
+.topology-hud b{font-size:.8rem;font-weight:500;color:var(--text);margin-right:3px}.topology-hud .return b{color:var(--green)}.topology-hud .attention b{color:var(--amber)}
+.topology-direction-key{display:flex;align-items:center;gap:5px;margin-left:auto;font-size:.5rem;color:var(--dim)}.topology-direction-key i{display:inline-block;width:14px;border-top:2px solid var(--cyan);transform:rotate(-15deg)}.topology-direction-key i.back{border-color:var(--green);transform:rotate(15deg)}.topology-direction-key i.relation{border-top:1px dashed var(--lilac);transform:none}
+.topology-density{position:absolute;left:12px;right:12px;bottom:30px;display:flex;gap:10px;align-items:center;height:14px;pointer-events:none;z-index:4;font-size:.5rem;color:var(--dim);background:color-mix(in srgb,var(--panel) 90%,transparent)}
+.topology-density>div{display:flex;gap:2px;align-items:end;height:12px;flex:1}.topology-density i{flex:1;height:calc(1px + var(--height) * 11px);background:var(--bar);min-width:1px;opacity:.65}.topology-density>span{white-space:nowrap}.topology-density b{color:var(--muted);font-weight:500}
+.topology-world .topology-quiet{left:12px;right:12px;bottom:5px;max-width:none;padding:3px 0;border:0;border-top:1px solid var(--line);border-radius:0;background:var(--panel);font-size:.52rem;min-height:19px;z-index:4;line-height:1.2;gap:7px}
+.topology-quiet>b{font-size:.5rem;color:var(--muted);letter-spacing:.03em;white-space:nowrap}.topology-quiet>span:last-child{max-width:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+:root[data-theme=light] .station-label>small{color:color-mix(in srgb,var(--identity) 45%,#142338)}
+:root[data-theme=light] .station-emblem{color:color-mix(in srgb,var(--identity) 60%,#142338)}
+:root[data-theme=light] .topology-route-line,:root[data-theme=light] .topology-arrow{stroke:color-mix(in srgb,var(--route) 65%,#142338)}
+@container(max-width:650px){.topology-direction-key{display:none}.activity-map-mode #jona-presence .presence-unavailable{display:none}}
+@media(prefers-reduced-motion:reduce){.topology-world *{transition:none!important;animation:none!important}}
+
+/* Retained event-state corrections, independent of compact station presentation. */
+.topology-live-key{display:flex;align-items:center;gap:calc(4px / var(--map-scale))}.topology-live-key>i{width:calc(15px / var(--map-scale));border-top:2px solid var(--cyan);transform:rotate(-12deg)}
+.topology-history-toggle{pointer-events:auto;min-height:calc(25px / var(--map-scale));padding:calc(3px / var(--map-scale)) calc(7px / var(--map-scale));font:inherit;color:var(--muted);border:1px dashed var(--dim);background:var(--panel);border-radius:4px}.topology-history-toggle[aria-pressed=true]{border-color:var(--lilac);color:var(--lilac)}.topology-history-toggle:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.topology-capacity{color:var(--dim);font-size:calc(.65rem / var(--map-scale));margin-left:auto;padding-right:calc(5px / var(--map-scale))}
+.topology-route.state-recent .topology-route-line{opacity:.92;stroke-width:var(--route-weight)}.topology-route.state-recent .topology-route-glow{opacity:.13}
+.topology-route.state-retained .topology-route-line{stroke:var(--dim);stroke-width:1.1px;stroke-dasharray:3 7;opacity:.15}.topology-route.state-retained .topology-route-glow{opacity:0}.topology-route.state-retained .topology-arrow,.topology-route.state-retained .topology-route-count{opacity:0}
+.topology-world[data-history=shown] .topology-route.state-retained .topology-route-line,.topology-world[data-history=quiet] .topology-route.state-retained .topology-route-line{opacity:.46;stroke-dasharray:4 6}
+.topology-route.state-replay .topology-route-line{opacity:.6;stroke-dasharray:7 2}.topology-route.state-unknown .topology-route-line{stroke:var(--amber);opacity:.45;stroke-dasharray:3 5}.topology-route.state-unknown .topology-route-glow{opacity:0}
+.topology-route.state-retained:is(:hover,:focus,.selected) .topology-route-line{stroke:var(--route);opacity:.95;stroke-width:2px}.topology-route.state-retained:is(:hover,:focus,.selected) .topology-arrow,.topology-route.state-retained:is(:hover,:focus,.selected) .topology-route-count{opacity:1}
+.topology-token-channel{fill:none;stroke:var(--lilac);stroke-width:1.1;stroke-dasharray:3 5;opacity:.5;pointer-events:none}
+.topology-token-channel.output{stroke:var(--muted)}
+.topology-token-anchor{cursor:pointer;color:var(--lilac);outline:none}
+.topology-token-anchor circle{fill:var(--panel);stroke:currentColor;stroke-width:1.5}
+.topology-token-anchor path{fill:none;stroke:currentColor;stroke-width:1.5}
+.topology-token-anchor text{fill:currentColor;font-size:10px;font-family:inherit;text-anchor:middle}
+.topology-token-anchor .topology-token-anchor-note{font-size:8px}
+.topology-token-anchor:focus-visible circle{stroke:var(--text);stroke-width:3}

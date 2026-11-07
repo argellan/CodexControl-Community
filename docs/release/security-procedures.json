@@ -1,0 +1,134 @@
+[
+  {
+    "id": "SEC01",
+    "title": "Authentication and session lifecycle",
+    "trigger": "Web/account interface",
+    "basis": "ASVS v5.0.0-7.2.1 and 7.4.1; WSTG 4.2 section 4.4/4.6",
+    "static_method": "Enumerate sign-in, recovery/access-key, session and logout/revocation routes from code/config. Identify backend verification and expiry rules.",
+    "dynamic_method": "With disposable users, compare valid access with missing, malformed, expired and revoked credentials; attempt old-session reuse after logout and after account disable.",
+    "pass_criteria": "Authorized case works; rejected requests disclose no scoped data and cause no protected write; terminated sessions remain unusable according to documented contract.",
+    "budget": "10 min; at most 20 requests per case",
+    "limits": "No expiry feature assumed; document any persistent-key design and its risk. Proxy authentication requires an actual verified boundary."
+  },
+  {
+    "id": "SEC02",
+    "title": "Function and data authorization",
+    "trigger": "Accounts/scoped data, APIs, stream or export",
+    "basis": "ASVS v5.0.0-8.2.1, 8.2.2 and 8.3.1",
+    "static_method": "Map subject-role/data scope to each read/write route, event stream, export and admin action. Trace server-side enforcement and stale asynchronous result handling.",
+    "dynamic_method": "Use two synthetic subjects with disjoint host/project scopes plus administrator. Replay a permitted request under the other identity and after scope/revocation change; include an already-open stream.",
+    "pass_criteria": "No unauthorized object/function response, persisted mutation or post-revocation stale disclosure; equivalent scopes consistent across UI/API/export.",
+    "budget": "15 min; small synthetic matrix",
+    "limits": "Do not invent tenant boundaries. If no tenant exists, tenant isolation is NOT_APPLICABLE with architecture evidence."
+  },
+  {
+    "id": "SEC03",
+    "title": "Untrusted data to browser and interpreter",
+    "trigger": "Untrusted labels, queries, templates or child processes",
+    "basis": "ASVS v5.0.0-1.2.1, 1.2.4, 1.2.5 and 3.2.2",
+    "static_method": "Trace event labels, filenames and query input to HTML/URL/SQL/process sinks; inspect parameterization and context-specific handling.",
+    "dynamic_method": "Render inert marker strings containing delimiter/markup characters in disposable fixtures and verify visible text/DOM; exercise a rejected malformed query without executing host commands.",
+    "pass_criteria": "Input is treated as data in the intended context; no unexpected navigation, executable markup or altered query/process structure.",
+    "budget": "10 min; no payload against live service",
+    "limits": "Static suspicion is not a demonstrated exploit; a safe textContent path does not prove all other sinks safe."
+  },
+  {
+    "id": "SEC04",
+    "title": "Browser origin and deployment boundary",
+    "trigger": "Browser plus HTTP/TLS or proxy",
+    "basis": "ASVS v5.0.0-13.1.1; WSTG 4.2 sections 4.2/4.6/4.11",
+    "static_method": "Inventory cookie/storage auth, CSRF-relevant mutations, CORS, CSP, frame policy, Host/Origin handling, proxy headers and bind/TLS defaults.",
+    "dynamic_method": "In isolated instance compare intended origin/host with foreign/missing/mismatched values as permitted by protocol; check preflight, framing and ambient-credential state changes where present.",
+    "pass_criteria": "Documented trust boundary enforced; response headers fit actual content/workflow; foreign origin cannot cause protected action or read sensitive response.",
+    "budget": "10 min; loopback/mock origins only",
+    "limits": "Header presence alone is insufficient. Local loopback HTTP may be intentional; do not force internet-service HSTS assumptions onto it."
+  },
+  {
+    "id": "SEC05",
+    "title": "Filesystem paths and reviewed exports",
+    "trigger": "File access, exports, ZIPs or generated downloads",
+    "basis": "ASVS v5.0.0-5.3.2; 1.2.10 for spreadsheet formats",
+    "static_method": "Identify allowed roots and links/reparse points; inspect path construction, normalization, symlink policy, extraction destinations, review authorization and exported field allowlist.",
+    "dynamic_method": "Use a disposable tree with sentinel files outside allowed root and hostile/ambiguous filenames; create a small export and independently inspect members/fields/hashes. If CSV is supported, inspect formula-leading cells.",
+    "pass_criteria": "No read/write outside scope, secret/unrelated content, invalid archive path or unreviewed field; download names safe; spreadsheet interpretation mitigated where applicable.",
+    "budget": "15 min; less than 10 MiB fixtures",
+    "limits": "No extraction of unknown hostile archives in production. Formula protection is conditional, not a mandate to add spreadsheet export."
+  },
+  {
+    "id": "SEC06",
+    "title": "Outbound requests and integration credentials",
+    "trigger": "HTTP fetch, API integration or archive transport",
+    "basis": "ASVS v5.0.0-1.3.6, 12.1.1 and 13.1.1",
+    "static_method": "Inventory destinations, redirect handling, DNS/proxy assumptions, TLS verification, credential injection scope and integration defaults.",
+    "dynamic_method": "Use mock endpoints to compare approved destination and refused foreign/redirect/TLS failure; simulate provider rate limit, expired auth and unavailable permission.",
+    "pass_criteria": "No credential sent before identity/destination validation or to unintended redirect; TLS fails closed; partial/unavailable remains visible with bounded retry.",
+    "budget": "15 min; mock destinations only",
+    "limits": "Do not request real cloud metadata or unrelated hosts; no credential expansion/account provisioning to make a test pass."
+  },
+  {
+    "id": "SEC07",
+    "title": "Collector identity and semantic ingestion",
+    "trigger": "Collector/event receiving pipeline",
+    "basis": "ASVS v5.0.0-2.2.1 and 8.3.1 plus product contract",
+    "static_method": "Trace enrollment, instance/host/project/source identity, source schema versions and cursor/ACK logic; identify totals' identity basis and timestamp semantics.",
+    "dynamic_method": "Send known synthetic valid, wrong-instance/host, malformed, stale/future, duplicate, reordered and corrected-version batches; restart between lost-ACK retry and resend.",
+    "pass_criteria": "Correct source scope, deterministic duplicate/correction treatment, no invented totals; rejected/uncommitted input does not advance cursor; previous exact retry has documented idempotency.",
+    "budget": "20 min; at most 1000 tiny records",
+    "limits": "Require only ordering/replay guarantees the protocol promises; preserve provenance and show gaps rather than fabricate continuity."
+  },
+  {
+    "id": "SEC08",
+    "title": "Reconnect and bounded resource pressure",
+    "trigger": "Streams, parsers, queues or history workload",
+    "basis": "ASVS v5.0.0-2.4.1",
+    "static_method": "Read size/count/decompression/time/concurrency/storage limits and overload policy; distinguish capture preservation from rendering bounds.",
+    "dynamic_method": "Disconnect/reconnect a viewer and collector, use slow reader plus bounded burst just above a configured limit, then release pressure. Compare committed fixture counts before/after.",
+    "pass_criteria": "No silent loss, retry storm or unbounded growth; clear stale/gap/backpressure state; documented recovery cursor and bounded workload/latency behavior.",
+    "budget": "15 min; predeclare CPU/RSS/disk abort thresholds",
+    "limits": "No uncontrolled DoS or disk filling; use quotas or failure injection. Model worker resource use separately from product workload."
+  },
+  {
+    "id": "SEC09",
+    "title": "Archive transaction and exact receipt custody",
+    "trigger": "Durable archive/retention paths",
+    "basis": "ASVS v5.0.0-2.3.3; SQLite practice; product custody rules",
+    "static_method": "Trace row version to outbox/segment, receiver/catalog commit, receipt verification and eviction. Identify rebuildable indexes versus original source.",
+    "dynamic_method": "Interrupt before/after write/ACK, lose ACK, retry same/different bytes, supply foreign/partial/corrupt receipt or segment; concurrently correct one record version.",
+    "pass_criteria": "Only exact current durably accepted versions become eligible for eviction; corrupt/foreign/partial evidence rejected; originals retained; retry has defined semantics.",
+    "budget": "20 min; disposable data only",
+    "limits": "No deleting production records or resetting queues. Durable receipt assumptions include filesystem/transport boundaries, not just hash equality."
+  },
+  {
+    "id": "SEC10",
+    "title": "Coherent backups migrations and restore",
+    "trigger": "Persistent state or supported updates",
+    "basis": "SQLite Online Backup API; engineering judgment",
+    "static_method": "Document snapshot consistency across databases/config/identity, exclusions, migration versions, rollback policy and restore trust behavior.",
+    "dynamic_method": "Backup a disposable representative instance via supported method, restore to an isolated root and compare schema, selected logical rows, provenance/receipts and application reads; simulate one migration failure.",
+    "pass_criteria": "Actual recovery succeeds within agreed RTO/RPO; unsupported downgrade safely refuses; original only copy untouched; credentials not silently rebound.",
+    "budget": "30 min initial fixture; cap by declared volume",
+    "limits": "A backup existing or database integrity check is not a successful application restore; real NAS durability remains separate evidence."
+  },
+  {
+    "id": "SEC11",
+    "title": "Privacy logging diagnostics and telemetry",
+    "trigger": "All outputs; consent path if implemented",
+    "basis": "ASVS v5.0.0-16.2.5 and 16.3.4; product exclusions",
+    "static_method": "Enumerate capture/diagnostic/log/export/telemetry fields and destinations, retention and access; inspect error observability and redaction before queueing.",
+    "dynamic_method": "Inject synthetic prohibited markers, trigger one refusal/error and inspect outputs/state. Where telemetry exists, test fresh off/consent/on/disable/queued-report behavior with mock receiver.",
+    "pass_criteria": "No prohibited values in saved/transmitted outputs; actionable redacted errors; default-off and disposal rules match consent contract.",
+    "budget": "15 min; synthetic fields only",
+    "limits": "Do not label data anonymous solely because names are omitted; receiver metadata still matters. Feature absent stays NOT_IMPLEMENTED."
+  },
+  {
+    "id": "SEC12",
+    "title": "Dependencies build and private release configuration",
+    "trigger": "Included dependencies/runtime/assets and build/distribution",
+    "basis": "Scorecard checks; GitHub secure use; SLSA",
+    "static_method": "Inventory exact direct/transitive/runtime/asset versions and sources, lock/install scripts, dynamic downloads, build credentials, workflow authority and artifact inclusions.",
+    "dynamic_method": "When separately authorized, run declared dependency/secret/static checks on the frozen input and inspect results; compare actual artifact members to inventory; validate trusted build/source identity.",
+    "pass_criteria": "No unexplained included dependency/secret; applicable advisories triaged with impact/reachability; privileged workflow exposure resolved; coverage/permission limits explicit.",
+    "budget": "30 min; one approved tool pass plus triage",
+    "limits": "No scans performed by this research. A tool score or clean pattern scan is not proof of source integrity or application security."
+  }
+]

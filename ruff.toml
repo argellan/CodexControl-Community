@@ -1,0 +1,10 @@
+# Author: Bishop Crockett
+# Owner: Argellan.com
+# License: MIT
+# SPDX-License-Identifier: MIT
+# Attribution covers ARGELLAN-authored implementation and modifications only.
+# Upstream credits and licenses remain in THIRD_PARTY_NOTICES.md.
+target-version = "py312"
+
+[lint]
+select = ["E4", "E7", "E9", "F"]

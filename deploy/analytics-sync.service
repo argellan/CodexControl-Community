@@ -1,0 +1,29 @@
+# Author: Bishop Crockett
+# Owner: Argellan.com
+# License: MIT
+# SPDX-License-Identifier: MIT
+# Attribution covers ARGELLAN-authored implementation and modifications only.
+# Upstream credits and licenses remain in THIRD_PARTY_NOTICES.md.
+# Operator-reviewed example for the archive/analytics host, not the Pi hub.
+# Paths, account and resource limits require target qualification before use.
+[Unit]
+Description=CodexControl bounded historical analytics projection
+
+[Service]
+Type=oneshot
+User=codexarchive
+Group=codexarchive
+WorkingDirectory=/opt/codexcontrol
+ExecStart=/opt/codexcontrol/analytics-runtime/bin/python -I -B /opt/codexcontrol/scripts/archive-analytics.py --config /etc/codexcontrol/analytics.json --sync --limit 32
+Restart=no
+TimeoutStartSec=120
+TimeoutStopSec=10
+KillMode=control-group
+MemoryMax=768M
+CPUQuota=50%
+Nice=10
+IOSchedulingClass=idle
+UMask=0077
+NoNewPrivileges=yes
+StandardOutput=journal
+StandardError=journal
