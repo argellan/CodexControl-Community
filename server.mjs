@@ -56,7 +56,7 @@ const MAX_FILES = 128;
 const staticFiles = new Map([['/', ['public/index.html','text/html']], ['/app.css',['public/app.css','text/css']], ['/app.js',['public/app.js','text/javascript']], ['/login.js',['public/login.js','text/javascript']], ['/event-model.mjs',['public/event-model.mjs','text/javascript']]]);
 staticFiles.set('/device-enrollment.mjs',['public/device-enrollment.mjs','text/javascript']);
 staticFiles.set('/ui-model.mjs',['public/ui-model.mjs','text/javascript']);
-for(const file of ['diagnostics-workspace.mjs','diagnostics-schema.mjs','lazy-workspace.mjs','investigation-workspace.mjs','view-zoom.mjs','event-ribbon.mjs','dialog-interactions.mjs','mobile-workspace.mjs','profile-editor.mjs','companion-panel.mjs','account-history-view.mjs','native-analytics-view.mjs'])staticFiles.set('/'+file,['public/'+file,'text/javascript']);
+for(const file of ['workspace-sizing.mjs','diagnostics-workspace.mjs','diagnostics-schema.mjs','lazy-workspace.mjs','investigation-workspace.mjs','view-zoom.mjs','event-ribbon.mjs','dialog-interactions.mjs','mobile-workspace.mjs','profile-editor.mjs','companion-panel.mjs','account-history-view.mjs','native-analytics-view.mjs'])staticFiles.set('/'+file,['public/'+file,'text/javascript']);
 staticFiles.set('/projects-workspace.mjs',['public/projects-workspace.mjs','text/javascript']);
 staticFiles.set('/github-return.mjs',['public/github-return.mjs','text/javascript']);
 staticFiles.set('/projects-workspace.css',['public/projects-workspace.css','text/css']);

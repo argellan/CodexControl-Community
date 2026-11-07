@@ -23,6 +23,21 @@ const configuration={enabled:true,executable:process.execPath,accountKey:'a'.rep
 const limits={rateLimits:{limitId:'legacy',primary:{usedPercent:99}},rateLimitsByLimitId:{codex:{limitId:'codex',limitName:'Codex',planType:'pro',primary:{usedPercent:17,windowDurationMins:10080,resetsAt:1793082757},secondary:null,credits:{balance:'PRIVATE_CREDIT'},accountId:'PRIVATE_ACCOUNT'}}};
 const usage={summary:{lifetimeTokens:123456789,peakDailyTokens:567890,longestRunningTurnSec:90,currentStreakDays:5,longestStreakDays:8,secret:'PRIVATE_SUMMARY'},dailyUsageBuckets:[{startDate:'2026-10-19',tokens:567890,private:'PRIVATE_BUCKET'},{startDate:'2026-10-20',tokens:10000}]};
 const defaults=message=>message.method==='initialize'?{}:message.method==='account/read'?{account:{type:'chatgpt',email:'PRIVATE_EMAIL@example.test',planType:'pro'},requiresOpenaiAuth:true}:message.method==='account/rateLimits/read'?limits:usage;
+
+test('native account identity automatically supplies a stable opaque history key without exporting identity',async()=>{
+ let accountId='TEST_ONLY_provider_account_A',now=epoch;
+ const make=()=>{const f=fixture(message=>message.method==='account/rateLimits/read'?{id:message.id,result:{...limits,accountId}}:undefined);return new CodexAccountObserver({...configuration,accountKey:null},{spawnProcess:f.spawnProcess,clock:()=>now});};
+ const first=make(),a=await first.poll();assert.match(a.accountKey,/^[a-f0-9]{64}$/);assert.ok(!JSON.stringify(a).includes(accountId));assert.ok(!JSON.stringify(a).includes('PRIVATE_EMAIL'));first.stop();
+ const restarted=make();assert.equal((await restarted.poll()).accountKey,a.accountKey);now+=60000;accountId='TEST_ONLY_provider_account_B';const b=await restarted.poll();assert.notEqual(b.accountKey,a.accountKey);assert.match(b.accountKey,/^[a-f0-9]{64}$/);assert.ok(!JSON.stringify(b).includes(accountId));restarted.stop();
+});
+
+test('automatically linked quota readings reach the durable hourly history projection',async()=>{
+ const f=fixture(message=>message.method==='account/rateLimits/read'?{id:message.id,result:{...limits,accountId:'TEST_ONLY_history_account'}}:undefined);
+ const observer=new CodexAccountObserver({...configuration,accountKey:null},{spawnProcess:f.spawnProcess,clock:()=>epoch}),directory=await fs.mkdtemp(path.join(os.tmpdir(),'cc-auto-quota-'));
+ try{const value=await observer.poll();const {FleetHub}=await import('../lib/fleet.mjs');const hub=await FleetHub.open({directory,hosts:[]});await hub.captureLocal({host:{id:'TEST_ONLY-history-source'},observedAt:value.observedAt,sessions:[],events:[],coverage:{},accountUsage:value});
+ const history=hub.journal.allowanceHistory({now:epoch,range:'24h',accountKey:value.accountKey,limitId:'codex',slot:'primary',hostIds:['TEST_ONLY-history-source']});assert.equal(history.status,'observed');assert.ok(history.points.length>0);assert.equal(history.points.at(-1).remaining,83);assert.ok(history.bars.some(b=>b.remaining===83));
+ }finally{observer.stop();await fs.rm(directory,{recursive:true,force:true});}
+});
 function fixture(handler=()=>undefined){
  const calls=[],children=[],launches=[];
  const spawnProcess=(executable,args,options)=>{

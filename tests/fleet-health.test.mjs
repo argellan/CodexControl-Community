@@ -13,6 +13,16 @@ import crypto from 'node:crypto';
 import {FleetHub} from '../lib/fleet.mjs';
 const key='fixture-health-credential',host={id:'example-source',label:'Example source',tokenHash:crypto.createHash('sha256').update(key).digest('hex')};
 const local={host:{},sessions:[],events:[],coverage:{}};
+
+test('local snapshot exposes committed numeric capture coverage without borrowing it for another host',async()=>{
+ const directory=await fs.mkdtemp(path.join(os.tmpdir(),'cc-local-coverage-'));let hub;
+ try{hub=await FleetHub.open({directory,hosts:[]});const source={observedAt:new Date().toISOString(),host:{id:'TEST_ONLY-local',name:'TEST_ONLY local'},sessions:[],events:[],coverage:{limit:128}};
+ await hub.captureLocal(source,{usageCapture:{usageSamples:[],coverage:{scannedFiles:7,discoveredFiles:9,unscannedFiles:2,sampleCount:4,backlogged:true,inventoryLimited:false}}});
+ const coverage=hub.snapshot(source).hosts[0].coverage.numericUsage;assert.equal(coverage.version,1);assert.equal(coverage.source,'codex-rollout-numeric');assert.equal(coverage.scannedFiles,7);assert.equal(coverage.unscannedFiles,2);assert.equal(coverage.backlogged,true);
+ const later={...source,observedAt:new Date(Date.parse(source.observedAt)+1).toISOString()};await hub.captureLocal(later);assert.equal(hub.snapshot(later).hosts[0].coverage.numericUsage.scannedFiles,7);
+ assert.equal(hub.snapshot({...source,host:{id:'TEST_ONLY-other'}}).hosts[0].coverage?.numericUsage,undefined);
+ }finally{assert.equal(hub?.writer,null);await fs.rm(directory,{recursive:true,force:true});}
+});
 const fixture=async callback=>{const directory=await fs.mkdtemp(path.join(os.tmpdir(),'cc-fleet-health-'));try{const hub=await FleetHub.open({directory,hosts:[{...host}]});return await callback(hub,directory);}finally{await fs.rm(directory,{recursive:true,force:true});}};
 const payload=coverage=>({hostId:host.id,batchId:'fixture',observedAt:new Date().toISOString(),sessions:[],events:[],coverage});
 

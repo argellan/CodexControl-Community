@@ -213,16 +213,11 @@ main{padding:6px 8px 0;gap:5px}
  .header-utilities.is-open .top-actions{display:flex}
 }
 @media(max-width:650px){.analyst-header .workspace-nav{flex-wrap:wrap;justify-content:flex-start}.analyst-header .workspace-nav button{flex:0 1 auto;min-width:auto;padding-inline:9px}}
-@media(min-width:851px) and (max-height:540px){
- body{height:auto;min-height:100dvh}
- main{flex:none;height:auto;min-height:calc(100dvh - 44px)}
- .cockpit{flex:none;min-height:440px}
- .center-stack{min-height:440px}
-}
+
 
 .weekly-allowance.stale .allowance-track{opacity:.3}.weekly-allowance.stale .allowance-track i{background:var(--muted)}
 
-@media(min-width:851px) and (max-height:540px){.cockpit{height:440px;min-height:440px}.center-stack{height:440px;min-height:0}}
+
 #header-utilities-toggle{background:#2b3b4f;color:#eaf0f7;border-color:#53647b}
 
 .fleet-host-toggle:has(.fleet-host-state:is([data-status="not connected"],[data-status="disconnected"],[data-status="stale"])) {display:grid;grid-template-columns:30px minmax(0,1fr);gap:4px 8px}
@@ -312,3 +307,80 @@ code,pre,kbd,samp{font-family:"JetBrains Mono",Consolas,monospace}
 .no-motion .ticker.is-alert::before,.no-motion .ticker.is-alert::after{animation:none!important}
 @media(prefers-reduced-motion:reduce){.ticker.is-alert::before,.ticker.is-alert::after{animation:none!important}}
 
+
+/* Keep both operational panels usable when display scaling reduces CSS height.
+   Overflow scrolls the page instead of compressing the map into its labels. */
+/* Size from content and CSS viewport space, never a physical-display cutoff. */
+body{height:100dvh;min-height:100dvh}
+#main{height:auto;flex:1 1 0%;min-height:0}
+#cockpit{flex:1 1 0%;min-height:var(--workspace-min-height,320px)}
+#cockpit>.center-stack{grid-template-rows:minmax(var(--map-pane-min-height,300px),var(--waterfall-track,72fr)) 8px minmax(max(12rem,var(--timeline-pane-min-height,180px)),var(--timeline-track,28fr))}
+#cockpit .waterfall-panel{min-height:0}
+#cockpit .waterfall-stage{min-height:14rem}
+
+#replay{min-width:108px;white-space:nowrap}
+
+/* Counts update in place; equal tracks and reserved numeric space prevent jitter. */
+.flow-footer #metrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));min-width:0;flex:1 1 680px}
+.flow-footer #metrics .stat{display:grid;grid-template-columns:5ch minmax(0,1fr);min-width:0;gap:5px;white-space:normal}
+.flow-footer #metrics .stat>b{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.flow-footer #metrics .stat>span{white-space:normal;overflow-wrap:normal}
+@media(pointer:coarse){#replay,#play{min-height:44px}.flow-footer #metrics .stat{min-height:44px}}
+
+.center-stack.flow-only{grid-template-rows:minmax(0,1fr)}
+.center-stack.flow-only>.timeline-panel,.center-stack.flow-only>#waterfall-splitter{display:none}
+#cockpit>.center-stack.flow-only{grid-template-rows:minmax(var(--map-pane-min-height,300px),1fr)}
+
+@media(min-width:1101px){
+ .fleet .fleet-host-toggle{display:grid;grid-template-columns:31px minmax(0,1fr);gap:3px 8px;align-items:center}
+ .fleet .fleet-host-toggle>.device-badge{grid-row:1 / span 2}
+ .fleet .fleet-host-copy{grid-column:2;grid-row:1}
+ .fleet .fleet-host-state{grid-column:2;grid-row:2;justify-self:start;white-space:normal;text-align:left}
+}
+
+#flow-key{font:inherit;font-size:13px;min-height:32px;padding:4px 10px;flex:0 0 auto}
+.flow-key-popup{margin:0;inset:auto;width:min(390px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--text);box-shadow:0 12px 40px #0006;font:inherit;font-size:max(14px,1rem);line-height:1.4}
+.flow-key-popup>header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.flow-key-popup>header b{font-size:16px}.flow-key-popup header button{min-width:32px;min-height:32px}
+.flow-key-rows>div,.flow-key-coins>div{display:grid;grid-template-columns:90px minmax(0,1fr);align-items:center;gap:12px;margin:10px 0}.flow-key-rows svg{width:90px;height:18px;stroke:var(--cyan);fill:none;stroke-width:2}.flow-key-rows svg circle{fill:var(--cyan)}
+.flow-key-popup b,.flow-key-popup small{display:block}.flow-key-popup small{font-size:max(12px,.85rem);color:var(--muted);line-height:1.4}.flow-key-popup h3{font-size:14px;margin:16px 0 8px}.flow-key-coins>div{grid-template-columns:48px minmax(0,1fr)}.flow-key-coins canvas{width:48px;height:36px}.legend-categories{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:16px;font-size:13px}.legend-evidence-note{font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:10px;margin-top:12px}
+@media(pointer:coarse){#flow-key,.flow-key-popup header button{min-width:44px;min-height:44px}}
+
+/* Wide evidence tables retain readable columns and expose horizontal scrolling. */
+.usage-table-scroll{overflow:auto;max-width:100%;scrollbar-gutter:stable;overscroll-behavior-inline:contain}
+.usage-table-scroll table{table-layout:auto;min-width:100%;width:max-content;font-size:max(.85rem,13px)}
+.usage-table-scroll :is(th,td){min-width:90px;max-width:240px;word-break:normal;overflow-wrap:normal;line-height:1.4;padding:9px 12px}
+.usage-table-scroll th{white-space:normal;font-weight:600}.usage-table-scroll td{white-space:nowrap;font-variant-numeric:tabular-nums}
+
+.flow-footer #metrics .stat>b{font-size:max(13px,.95rem)}.flow-footer #metrics .stat>span{font-size:max(11px,.8rem)}
+@media(pointer:coarse){.commandbar button,.commandbar select,.waterfall-panel .panel-heading button,.timeline-tabs button{min-height:44px;min-width:44px}}
+
+/* Compact desktop controls follow the primary input, not any attached touchscreen.
+   Narrow/adaptive layouts retain their existing 44px touch targets. */
+@media(min-width:1051px){
+ :root:not([data-density=comfortable]) #workspace-filters :is(button,select){min-height:24px;padding-block:2px;line-height:1.25}
+ :root:not([data-density=comfortable]) #workspace-filters .ticker{height:auto;min-height:24px}
+ :root:not([data-density=comfortable]) #workspace-filters .ticker .badge{padding-block:0}
+ :root:not([data-density=comfortable]) .fleet>.panel-heading{min-height:30px;padding:3px 8px;flex-wrap:nowrap}
+ .fleet-filter-row{display:flex;align-items:center;flex-wrap:wrap;gap:4px 6px;padding:4px 8px 6px;flex-shrink:0}
+ .fleet-filter-row>.search{flex:1 1 90px;min-width:0;margin:0;padding:0 5px;gap:4px}
+ .fleet-filter-row>.search>span{font-size:1rem;line-height:1}
+ .fleet-filter-row>.search input{min-height:24px;padding:2px 0;line-height:1.25}
+ .fleet-filter-row>.fleet-tools{display:contents}
+ .fleet-filter-row #clear-selection{min-height:26px;padding:2px 5px;line-height:1.25}
+ .fleet-filter-row .fleet-device-map:not(:empty){flex:1 0 100%;min-width:0}
+ :root[data-density=comfortable] .fleet-filter-row>.search input{min-height:32px}
+ :root[data-density=comfortable] .fleet-filter-row #clear-selection{min-height:34px}
+}
+@media(min-width:1051px) and (pointer:coarse){
+ #workspace-filters :is(button,select),#flow-key,.flow-footer #metrics .stat,.waterfall-panel .panel-heading button,.timeline-tabs button{min-height:44px;min-width:44px}
+ :root:not([data-density=comfortable]) #workspace-filters :is(button,select){min-height:44px;padding-block:5px}
+ .fleet-filter-row>.search input,.fleet-filter-row #clear-selection{min-height:44px}
+ .fleet-filter-row{gap:8px}
+}
+
+/* Dense desktop metrics use content height; touch and comfortable modes keep their targets. */
+@media(min-width:1051px) and (pointer:fine){
+ :root:not([data-density=comfortable]) .flow-footer{padding-block:0}
+ :root:not([data-density=comfortable]) .flow-footer #metrics .stat{min-height:24px;padding-block:2px}
+ :root:not([data-density=comfortable]) #flow-key{min-height:24px;padding-block:2px;line-height:1.2}
+}

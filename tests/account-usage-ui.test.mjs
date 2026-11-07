@@ -66,7 +66,7 @@ test('untrusted account labels, quota identifiers and profile labels are escaped
 
 test('primary burn meters use disjoint observed rates rather than cumulative session totals',()=>{
  const data=payload();data.activeUsage.totalTokens=3300000000;const view=buildAccountUsageView(data,{now}),strip=renderAccountStrip(view),details=renderAccountUsageDetails(view);
- assert.equal(view.burn.inputPerSecond,10);assert.equal(view.burn.uncachedInputPerSecond,5);assert.equal(view.burn.cachedInputPerSecond,5);assert.equal(view.burn.outputPerSecond,2);assert.match(strip,/Visible scope · 60s · 2 workers/);assert.match(strip,/New input 5, output 2, cached input 5 tokens per second/);assert.match(strip,/class="burn-meter burn-input"/);assert.match(strip,/class="burn-meter burn-output"/);assert.match(strip,/class="burn-meter burn-cache"/);assert.doesNotMatch(strip,/3\.3B|3,300,000,000/);assert.match(details,/Input including cache is 10 t\/s/);assert.match(details,/Usage arrives in sampled batches, not a provider token stream/);assert.match(details,/I · Blue · new input/);assert.match(details,/O · Violet · output/);assert.match(details,/C · Teal · cached input/);assert.match(details,/3,300,000,000/);
+ assert.equal(view.burn.inputPerSecond,10);assert.equal(view.burn.uncachedInputPerSecond,5);assert.equal(view.burn.cachedInputPerSecond,5);assert.equal(view.burn.outputPerSecond,2);assert.match(strip,/Visible scope · 60s · 2 workers/);assert.match(strip,/New input 5, output 2, cached input 5 tokens per second/);assert.match(strip,/class="burn-meter burn-input"/);assert.match(strip,/class="burn-meter burn-output"/);assert.match(strip,/class="burn-meter burn-cache"/);assert.doesNotMatch(strip,/3\.3B|3,300,000,000/);assert.match(details,/Input including cache is 10 t\/s/);assert.match(details,/Usage arrives in sampled batches, not a provider token stream/);assert.match(details,/I · Gold · new input/);assert.match(details,/O · Coral · output/);assert.match(details,/C · Teal · cached input/);assert.match(details,/3,300,000,000/);
 });
 
 test('sampled input ratios remain available independently of exact native response analytics',()=>{
@@ -76,7 +76,7 @@ test('sampled input ratios remain available independently of exact native respon
 
 test('account token legends follow the chosen palette with I/O/C and line patterns while preserving exact accounting',()=>{
  const view=buildAccountUsageView(payload(),{now}),semantic=renderAccountUsageDetails(view),coins=renderAccountUsageDetails(view,{palette:getTokenPalette('coins','light')});
- assert.match(semantic,/I · Blue · new input/);assert.match(semantic,/O · Violet · output/);assert.match(semantic,/C · Teal · cached input/);
+ assert.match(semantic,/I · Gold · new input/);assert.match(semantic,/O · Coral · output/);assert.match(semantic,/C · Teal · cached input/);
  assert.match(coins,/I · Gold · new input/);assert.match(coins,/O · Silver · output/);assert.match(coins,/C · Magenta · cached input/);
  for(const html of [semantic,coins]){assert.match(html,/token-line token-output/);assert.match(html,/token-line token-cached/);assert.match(html,/Input including cache is 10 t\/s/);assert.match(html,/cache is its subset/);assert.match(html,/not a monetary balance/);}
 });
@@ -136,9 +136,15 @@ function fixture(request,options={}){
  return {nodes,document,window,mounted,get destination(){return destination;},get section(){return section;},get retained(){return retained;},action:async(dialog,action)=>{const button=element(action);button.dataset={accountAction:action};await nodes.get(dialog).emit('click',{target:{closest:()=>button}});return button;}};
 }
 
+test('a newly identified account refreshes quota history immediately instead of retaining the empty cached window',async()=>{
+ let linked=false;const calls=[];
+ const f=fixture(async path=>{calls.push(path);if(path==='/api/account')return {capabilities:{authenticated:false}};if(path.startsWith('/api/account/allowance-history'))return {status:linked?'observed':'unavailable',points:[]};return payload({accountUsage:{status:'available',accounts:[account({accountKey:linked?'a'.repeat(64):null,hostIds:['TEST_ONLY-source']})]}});});
+ try{await f.mounted.ready;assert.equal(calls.filter(p=>p.includes('allowance-history')).length,1);linked=true;await f.mounted.refresh();await new Promise(resolve=>setImmediate(resolve));assert.equal(calls.filter(p=>p.includes('allowance-history')).length,2);}finally{f.mounted.destroy();}
+});
+
 test('a saved appearance change repaints an open usage dialog without refetching or emitting new usage',async()=>{
  let palette=getTokenPalette(),observations=0;const calls=[],f=fixture(async route=>{calls.push(route);return route==='/api/account'?{}:payload();},{getPalette:()=>palette,onUsage:()=>observations++});
- try{await f.mounted.ready;await f.nodes.get('usage-open').emit('click');assert.match(f.nodes.get('account-usage-content').innerHTML,/I · Blue/);const reads=calls.length;
+ try{await f.mounted.ready;await f.nodes.get('usage-open').emit('click');assert.match(f.nodes.get('account-usage-content').innerHTML,/I · Gold/);const reads=calls.length;
   palette=getTokenPalette('coins','light');f.mounted.repaint();assert.match(f.nodes.get('account-usage-content').innerHTML,/I · Gold/);assert.equal(calls.length,reads);assert.equal(observations,1);assert.equal(f.nodes.get('account-usage-dialog').open,true);
  }finally{f.mounted.destroy();}
 });

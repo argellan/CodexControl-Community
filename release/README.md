@@ -1,4 +1,4 @@
-> **Windows Community preview:** [Download, installation and deferred checks](PREVIEW_RELEASE.md).
+> **Windows Community preview 2:** [Download the updated installer](https://github.com/argellan/CodexControl-Community/releases/download/v0.1.0-preview.2/CodexControl-Community-0.1.0-Setup.exe) · [Fixes, installation and verification status](https://github.com/argellan/CodexControl-Community/blob/main/PREVIEW_RELEASE.md).
 
 # CodexControl Community for Windows — ARGELLAN
 

@@ -15,7 +15,7 @@ const contrast=(a,b)=>{const x=luminance(a),y=luminance(b);return (Math.max(x,y)
 
 test('token identity uses one immutable theme-aware mapping with input/cache subset semantics and redundant encodings',()=>{
  assert.deepEqual(Object.keys(TOKEN_PALETTE_OPTIONS),['semantic','coins']);assert.equal(DEFAULT_TOKEN_PALETTE,getTokenPalette());
- for(const [theme,colors] of Object.entries({dark:['#60A5FA','#C084FC','#2DD4BF'],light:['#1D4ED8','#7E22CE','#0F766E']})){
+ for(const [theme,colors] of Object.entries({dark:['#F5C451','#FF8475','#2DD4BF'],light:['#8A5A00','#B73D36','#0F766E']})){
   const palette=getTokenPalette('semantic',theme);assert.equal(palette,getTokenPalette('semantic',theme));assert.deepEqual(palette.legend.map(series=>series.color),colors);
   assert.deepEqual(palette.legend.map(series=>series.glyph),['I','O','C']);assert.deepEqual(palette.legend.map(series=>series.pattern),['solid','dashed','dotted']);
   assert.equal(palette.series.input.field,'uncachedInputTokens');assert.equal(palette.series.cached.field,'cachedInputTokens');assert.ok(Object.isFrozen(palette)&&Object.isFrozen(palette.series)&&Object.isFrozen(palette.series.input));

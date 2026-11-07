@@ -192,7 +192,8 @@
     "public/first-sign-in.html",
     "public/first-sign-in.js",
     "lib/desktop-owner-login.mjs",
-    "public/first-sign-in.css"
+    "public/first-sign-in.css",
+    "public/workspace-sizing.mjs"
   ],
   "support": [
     "docs/DEVELOPMENT.md",

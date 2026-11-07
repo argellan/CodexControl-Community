@@ -6,14 +6,14 @@
 // Upstream credits and licenses remain in THIRD_PARTY_NOTICES.md.
 // Token identity is independent of brand, source-event categories and alerts.
 // Cached input is a subset of inclusive input; these colors never imply money.
-export const TOKEN_PALETTE_OPTIONS=Object.freeze({semantic:'Semantic · blue / violet / teal',coins:'Original · gold / silver / magenta'});
+export const TOKEN_PALETTE_OPTIONS=Object.freeze({semantic:'Semantic · gold / coral / teal',coins:'Original · gold / silver / magenta'});
 const types={
  input:{field:'uncachedInputTokens',label:'New input',glyph:'I',pattern:'solid',dash:'',className:'burn-input'},
  output:{field:'outputTokens',label:'Output',glyph:'O',pattern:'dashed',dash:'7 4',className:'burn-output'},
  cached:{field:'cachedInputTokens',label:'Cached input',glyph:'C',pattern:'dotted',dash:'1 5',className:'burn-cache'}
 };
 const definitions={
- semantic:{dark:['#60A5FA','#C084FC','#2DD4BF'],light:['#1D4ED8','#7E22CE','#0F766E'],names:['Blue','Violet','Teal']},
+ semantic:{dark:['#F5C451','#FF8475','#2DD4BF'],light:['#8A5A00','#B73D36','#0F766E'],names:['Gold','Coral','Teal']},
  coins:{dark:['#FFD15C','#DCE6F2','#ED67FF'],light:['#875900','#475569','#9C287F'],names:['Gold','Silver','Magenta']}
 };
 const palettes={};

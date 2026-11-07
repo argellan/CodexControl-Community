@@ -247,12 +247,13 @@ export function mountAccountUsage({document,window,request,openSettings,openReta
  let account={},payload={},failed=false,busy=false,timer=null,destroyed=false,suspended=false,accountReadAt=0,returnFocus=null,returnDialog=null,returnMetricIndex=-1,revision='',profileRevision='',suppressReturnFocus=false;
  let lastUsageHtml=null,historyRenderKey=null,historyRenderHtml=null;
  let receivedAt=null,usageSection="all",historyRange=30,heatMode="daily",breakdown="feature",messageBreakdown="model";
- let allowanceHistory=null,historyReadAt=0,historyRangeRead=null,historyRequest=0,historyAbort=null;
+ let allowanceHistory=null,historyReadAt=0,historyRangeRead=null,historyRequest=0,historyAbort=null,historyIdentity=null;
  const selectedRange=()=>['24h','48h','7d'].includes(getPreferences().quotaHistoryRange)?getPreferences().quotaHistoryRange:'24h';
  function clearHistory(){selectedBarIndex=null;historyRequest++;historyAbort?.abort();historyAbort=null;allowanceHistory=null;historyReadAt=0;historyRangeRead=null;}
  async function refreshHistory({force=false}={}){
   const range=selectedRange(),scope=scopeKey,generation=scopeRevision;
   if(destroyed||suspended||document.hidden||payload.accountUsage?.status==='restricted')return;
+  const identity=JSON.stringify((payload.accountUsage?.accounts||[]).map(a=>[a.accountKey??null,[...(a.hostIds||[])].sort()]).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b))));if(historyIdentity!==identity){clearHistory();historyIdentity=identity;}
   if(!force&&historyRangeRead===range&&historyReadAt&&now()-historyReadAt<60000)return;
   historyAbort?.abort();const abort=new AbortController();historyAbort=abort;const requestId=++historyRequest;historyRangeRead=range;historyReadAt=now();
   if(!allowanceHistory)allowanceHistory={status:'loading',points:[]};paint();
