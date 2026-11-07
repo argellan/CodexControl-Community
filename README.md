@@ -1,6 +1,8 @@
-> **Windows Community preview 2:** [Download the updated installer](https://github.com/argellan/CodexControl-Community/releases/download/v0.1.0-preview.2/CodexControl-Community-0.1.0-Setup.exe) · [Fixes, installation and verification status](https://github.com/argellan/CodexControl-Community/blob/main/PREVIEW_RELEASE.md).
+> **Windows Community preview 3:** [Download the updated installer](https://github.com/argellan/CodexControl-Community/releases/download/v0.1.0-preview.3/CodexControl-Community-0.1.0-Setup.exe) · [Fixes, installation and verification status](https://github.com/argellan/CodexControl-Community/blob/main/PREVIEW_RELEASE.md).
 
 # CodexControl Community for Windows — ARGELLAN
+
+**Already installed?** Run the new installer and choose **Update Community**. Your history, settings and existing password are retained. [Windows upgrade guide](https://github.com/argellan/CodexControl-Community/blob/main/WINDOWS_UPGRADE.md).
 
 CodexControl runs on your own computer. Install the Community Windows EXE. It starts in Standalone mode. Change its role later in Settings without reinstalling:
 

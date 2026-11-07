@@ -1,11 +1,9 @@
 {
   "edition": "Community",
   "baseApplicationVersion": "0.1.0",
-  "releaseTag": "v0.1.0-preview.2",
-  "parentCommit": "3c3e33e0509e19f3e7fe94fea4d5f9bd4d8e8ee3",
-  "installedCandidateDigest": "7f1bcc6a1ba4dbb04da72be50f436701763ec4b9805b704062af0910cfeeb692",
-  "installedCandidateFileCount": 561,
-  "publicationSourceDigest": "e160e6bc0121cc3b0bedbe7d1ac8f8742bce3d3498d8a24aa4827143f6602269",
+  "releaseTag": "v0.1.0-preview.3",
+  "parentCommit": "267f40a8b9af47f4e1dc70c6743ab9b72474e302",
+  "publicationSourceDigest": "433ebf6274f9230d48b802ab4b23524fc8aa2ad58f17a1c26f9ce5c11f57688b",
   "publicationDigestExcludes": [
     "RELEASE_MANIFEST.json",
     "RELEASE_PROVENANCE.json",
@@ -22,8 +20,8 @@
     "CONTRIBUTING.md": "08373a6813ca25b4d4532828410175bfefa7830e4a1d798ba7afb0decb6b499f",
     "INSTALL.md": "d4a42e6d7a9cc47ee18e89393581deb87bb2f594d625f06f3c48c73bdd1f88ed",
     "LICENSE": "a4e52efe2ff7e4c067ca263e1b36f85a5061040e0721cc8d8508627f5cedbc0b",
-    "PREVIEW_RELEASE.md": "a5d604170c4cad0e5f8399a54f0344f8bf3d6d96f4ef74891f57402669267f63",
-    "README.md": "af9fe4690fdb9ecee420da28134c4a49a44155d4ae482a80fa0ffe782c65a36b",
+    "PREVIEW_RELEASE.md": "92d4f018844563ae65483fbf1a54295b9b924ef01ff4d678a922007faf62b6bd",
+    "README.md": "b5bfadc39ab8fe56413d54bca68544ad7d5078058308c7c3fe3f36e7f7a53807",
     "RELEASE_PREPARATION_VALIDATION.md": "f675e3f79bad37205c17675ea34233bce51dd64f2c7591003f6b06e5693e0ebf",
     "RELEASE_STATUS.md": "af3425371d8b9f5e96a315db85f57ff4dfef73a014489a11e0f93b1a8582edcf",
     "SECURITY.md": "a3ea0a7d6170a3cf1578cd38d9f854d78cbd629dead783b7c82a0034c7a6fc9c",
@@ -33,6 +31,7 @@
     "TRADEMARKS.md": "5e924d6357cc9f4251ae644aa64d7889e6f9c73d69274d6dd6ab251e10fb77ba",
     "UNINSTALL.md": "7aa55105883c0746009ce2da1ffc3715700f979dbc8bbe953fc00bcb5c6da518",
     "UPDATE.md": "1c8cd0a20c4771f69e810642c75fb28107d915a396717b82da54dafedda437eb",
+    "WINDOWS_UPGRADE.md": "5bbec86d7ee62fccb11e6811be0ce44e369200de66b2561e0e09fe0a49ea6cc0",
     "collector.mjs": "38bd2844fb6e5df81fa753ac31d771ae147b1da7901cdf3c7a392ef79bec2770",
     "control/README.md": "41213bb888185292aa7848014cda67a78b3267ad324ab2bb0a8b0955550e795a",
     "control/broker/actor-channel.mjs": "e3698555b4c8898824667460438f6302946c30620e5e3e63952b57df9479b7c5",
@@ -324,7 +323,7 @@
     "release/PUBLIC.gitignore": "758e7269708427658c58989a2df54174c9b188a5996fc6e00bc7ce8ccabe3e36",
     "release/PUBLIC_DESIGN.md": "30efe5c55b68a7d45886f175bd8f1ae864d15b47120d1e2c26ba7bd52d6c4622",
     "release/PUBLIC_PLAN.md": "b641e61efbba0243db82b16f590a34b4403cd26e1a4634a42cf40a4bbb81035a",
-    "release/README.md": "af9fe4690fdb9ecee420da28134c4a49a44155d4ae482a80fa0ffe782c65a36b",
+    "release/README.md": "b5bfadc39ab8fe56413d54bca68544ad7d5078058308c7c3fe3f36e7f7a53807",
     "release/SECURITY.md": "a3ea0a7d6170a3cf1578cd38d9f854d78cbd629dead783b7c82a0034c7a6fc9c",
     "release/STATUS.md": "af3425371d8b9f5e96a315db85f57ff4dfef73a014489a11e0f93b1a8582edcf",
     "release/SUPPORT_MATRIX.md": "e527b45c4d37d62d4398d7b0bfd66c422a25f6e8182bfed273509209cfff85fc",
@@ -338,9 +337,10 @@
     "release/examples/diagnostics-local-application.example.json": "dca04e5bcf9c8dfbcf1fce693b92cb2fe52b4497ece34647d3861508355fd819",
     "release/examples/diagnostics-synthetic.schema.json": "798a08be5309c4339c38bbe30b7b0daff1f2c376fcc6b5ef6b9ac89ccb40a0be",
     "release/examples/hub.example.json": "33f62a9ef5b82b482c53122104f2bf9129c4989ead208b17d396536b5a1b7a18",
-    "release/runtime-files.json": "afaaaf397ac696f7a2c1214eac499df76436d1a9ef3851c34eddc8bc6d46c58c",
-    "release/windows/Installer.cs": "d8006754142cddd00b91a26c0c1957f09a5970ef600123a27aa0e58a3b101d50",
-    "release/windows/installer-contract.json": "91bf394fe6c5734bf9264e440884f884c6400c56728a96a090c6653197d2b476",
+    "release/runtime-files.json": "1b356cdd8f5a621a37fb08ab627180dcc19ab963f3bd4e0293be65bd2ec11814",
+    "release/windows/Installer.Update.cs": "20879deb715c43beb16b40048b73e81f8a79fe1d48ebb2f29fefa70a0bc71b39",
+    "release/windows/Installer.cs": "24921e38b2ed0346990f60e95c8657f25248d0918c54936721d5cf7945a467af",
+    "release/windows/installer-contract.json": "876ff32f1b56291292ec5d7323631fec012427fa13d877019d10d285d71477b0",
     "ruff.toml": "dc9661e11e5891c8b6404344c5f979e41dba22630950457a19c14c00e29bc2e2",
     "scripts/analytics-requirements.txt": "2779694ae12128d40a4099dcb06f89aa5c574074d7cad60d590a963c1687675e",
     "scripts/archive-analytics.py": "fba10d6c0935b1755dd8970fb25e84bf39ae6caafcf872d1393cf1af42785000",
@@ -350,7 +350,7 @@
     "scripts/archive-usage.mjs": "0da74e688e78a3923fc504daa4ea36b0e9c2b759cf912ab65c4845c816ebfd74",
     "scripts/archive-windows.py": "3e6890baaa805823ede47de126d50640cf1d7763da70c69cfe2c34d71cf95474",
     "scripts/benchmark-github-integration.mjs": "caf2b69b2dd89737ace2f78f1da9665c3d6ac5bf9d35ddceb73acdd12752357f",
-    "scripts/build-windows-installer.mjs": "bbfbfc71f87576f590287a5c4f437daa67e148f42ccdf2f895381c0a9645e8f8",
+    "scripts/build-windows-installer.mjs": "b9a1dabe569755cb214daed702699fb0ed78bb06fcc74903528cd0331cf26230",
     "scripts/community-doctor.mjs": "ce42287c61b998275560e1ad0b8f470c8f6b2d7596b2229e8f17881e4b6f722d",
     "scripts/diagnostics-demo.mjs": "b243ff7cc4d06be75aa2b6eee4adfbdc773099c64726fbb4032350f39837b375",
     "scripts/diagnostics-receiver.mjs": "8e9b89180e853d55f2803702cb5afba584920adeb459da74c06225e4b33154e9",
@@ -368,6 +368,7 @@
     "scripts/restore-instance.mjs": "a594b441d2a5bb6453f374946a4e79a4bab6357bf0b4091e8a392651e756cd96",
     "scripts/setup-application.mjs": "365eb8205da786c6d675aab90c5fbde39e3d9ca9bdeddce7ad3742ca6cb7f81a",
     "scripts/setup-instance.mjs": "9deab361451957eaf279b8a0b93a3e484b3a15ae0d9be97aa635642e6cf2e213",
+    "scripts/test-windows-upgrade.mjs": "1eed6736d6cfa052e64e74d92bdfb98b60b73511aed12a4d4f2096a12eaf093a",
     "scripts/validate-release-register.ps1": "7737cbad718c501810837c248c8e0add6440565d82c229d5b61321992d3d2db8",
     "scripts/verify-administration.mjs": "b8ce6ed27a8e58c5f4888f52ef0d403dcc0ec25e822eaa21ed431a7c7b43d8ad",
     "scripts/windows-community.mjs": "38c9ebb87e10248dfe0d7e020f1b67b5b809207c8c150f3bd149c22a5da3c2dc",
@@ -571,68 +572,72 @@
     "tests/workspace-sizing.test.mjs": "5442a3aaf5d6d79af3cc65ebf3e344cbcdf15bb70f54d2cadf7fb0954bdc4ef6",
     "tests/workspace-usability.test.mjs": "0c7a7a643728f0bd52af8541f8b7623aecf8f0afb1977bd09ae27ff579265d47"
   },
-  "reviewedCodePatchSha256": "0ee70f84b2dea7c51c817c2bbb076c407930b7bef0eaf7d3c9d929081aee6e5f",
-  "runtimeFiles": {
-    "lib/codex-account-observer.mjs": "cbab5bc6a5670c7ace91cab75634801707157b19e29fe9d637c9c1022d0ef9de",
-    "lib/fleet.mjs": "fe9abe09528a7d4d6993dfbd27a8216f5cc025b3da56b8e7cb59629bb6fbbcde",
-    "public/account-usage.mjs": "2391ab808c126855baefdb276f1e304b1a0da439e6007e18207044ffc8dabf3e",
-    "public/app.css": "fe839c370ab59e72856e936a9fd49bfbeebb7da161d2e050227d6d8302d293e3",
-    "public/app.js": "e1407d1a964739610f9ad74e80648e9ea456149ae81ad1c1639406bc4242bc3e",
-    "public/index.html": "a22b8d72eff99baee9946ebeac12032f45d236ad6a700176d5e43dbfa62f3c7f",
-    "public/investigation-workspace.mjs": "09aa379d379dd2e7fc1c5a932bf84c73f26c28a5339ff2c945bc0c9ee08f9356",
-    "public/token-palette.mjs": "25a3f1c5f90c4bd1c77d6b4600c696828069209fdcc903dea92f19834aa35f22",
-    "public/usage-analytics-view.mjs": "3a80436cdf5e8b72ae8ff6ac94e8bfff3e469a913bb6c108ed157b9b9258bc5f",
-    "public/workspace-sizing.mjs": "780f866fed83f23dba52d3749f283e6efdfba0a723e99c76aacd6f9c58ff76d6",
-    "server.mjs": "4c8ba008f2faf621ff65386422e85c03838f0daa6c2851daf13f8032916f4fbe",
-    "release/runtime-files.json": "afaaaf397ac696f7a2c1214eac499df76436d1a9ef3851c34eddc8bc6d46c58c"
-  },
   "installer": {
     "name": "CodexControl-Community-0.1.0-Setup.exe",
-    "sha256": "c0a5651b1b71201750f9dea2dd34f51ffdaabbd072ed5e179ed6914839fcea42",
-    "bytes": 67066368,
-    "payloadFiles": 394,
-    "payloadManifestSha256": "7a5e80af8271903d6e393a524a6c19c7ce568108eb8382d526635c04be64552a"
+    "sha256": "25ae75e8f1b854101595dbac95d5f809e9aa668c889b687f795870aaf846e5ba",
+    "bytes": 67111424,
+    "payloadFiles": 396,
+    "payloadManifestSha256": "93354f18ebb8dd8b58b9f7ff199ae72a9068d9a2b244d31d06d6cb65bbfa4fd5"
   },
-  "installedRuntimeParity": {
-    "allPayloadPathsPreserved": true,
-    "existingPayloadFiles": 394,
-    "newPayloadFiles": 394,
-    "onlyDistributionMetadataDiffers": [
-      "app/README.md",
-      "app/RELEASE_MANIFEST.json",
-      "app/SHA256SUMS",
-      "app/release/README.md"
-    ],
-    "reviewedRuntimeFilesIdentical": 12
+  "featurePreservation": {
+    "unchangedFrontendFiles": 81,
+    "existingPayloadPathsPreserved": true,
+    "removedPayloadFiles": 0,
+    "coins": "Token renderer and all application frontend bytes unchanged from preview 2",
+    "applicationRuntime": "No changes to server, collection, retention, analytics or dashboard code"
   },
   "verification": {
-    "focusedFunctionalTests": {
-      "passed": 170,
-      "sourceDigest": "5cdd934298d5153799ca96ed933755c344127284422cff88710b7a838481b493",
-      "applicability": "JavaScript/backend unchanged; final CSS has rendered functional checks"
+    "nativeWindowsSyntheticUpgrade": {
+      "passed": 15,
+      "failed": 0,
+      "cases": [
+        "fresh previous-version installation",
+        "stopped update preserves every private byte and unmanaged application addition",
+        "personal password, encrypted initial envelope and presentation choices survive",
+        "application rollback preserves private data after prepared",
+        "application rollback preserves private data after old-moved",
+        "application rollback preserves private data after promoted",
+        "application rollback preserves private data after before-commit",
+        "an interrupted directory swap is recovered without restoring old private data",
+        "foreign process identity is refused without signaling it",
+        "modified installed payload is refused with the original data intact",
+        "wrong private-instance binding is refused",
+        "running installation closes cleanly, upgrades and resumes the same instance",
+        "rollback after a replacement starts retains later records and resumes the previous app",
+        "native maintenance stop closes only the fixture after verification",
+        "same-version production update is a no-op without credential regeneration"
+      ],
+      "resultSha256": "5c03113a1c8df734c6393f5f07758e5a00f44d9c011d75921ef88dffb03e1125",
+      "runnerSha256": "1eed6736d6cfa052e64e74d92bdfb98b60b73511aed12a4d4f2096a12eaf093a"
     },
+    "pendingFirstSignIn": "PASS - all private files unchanged, temporary credentials and required personal-password transition preserved",
     "packagingAndInstallerContractTests": {
       "passed": 50,
       "failed": 0,
       "skipped": 0
     },
-    "embeddedPayloadVerification": "PASS_394_FILES",
-    "nativeSignedInFunctionalChecks": [
-      "quota history captures new native reading",
-      "Inspector disclosure and scroll survive refresh",
-      "graphical Key opens by keyboard and closes with Escape",
-      "gold input, coral output, teal cached palette",
-      "live rendered token coins and advancing records",
-      "25 CSS pixel dense desktop metrics bar"
-    ],
-    "viewportEvidence": "Desktop/phone/tablet emulation and primary-touch checks; physical-device acceptance remains separate"
+    "embeddedPayload": "PASS - 396 verified files",
+    "nativeWizardVisualCheck": "NOT_RUN - Computer Use app approval timed out; wizard canceled without updating the real installation"
+  },
+  "updatePolicy": {
+    "privateData": "Retained in place with verified offline private backup",
+    "credentials": "Never regenerated during update",
+    "rollback": "Application only; current private records retained",
+    "interruption": "Durable transaction journal and exact-installation recovery",
+    "processes": "Only verified-owned graceful shutdown; never force-kill application",
+    "unsupportedLayouts": "Refuse rather than overwrite or silently migrate"
   },
   "qualificationStatus": "DEFERRED_BY_OWNER_NOT_PASSED",
-  "releaseAuthority": "Owner explicitly directed commit, push and updated public Windows installer on 2026-11-07; prior release qualification deferral remains explicit",
+  "releaseAuthority": "Owner requested the updated public Windows installer and then explicitly required existing-installation history, settings, credentials and all features to survive upgrade. Earlier full qualification deferral remains recorded.",
+  "remainingAcceptance": [
+    "Full eight-profile performance qualification",
+    "Physical phone and tablet acceptance",
+    "Physical power-loss testing",
+    "Complete Windows security/durability qualification"
+  ],
   "experimentalFrameRepairIncluded": false,
-  "dataPreservation": "No user data, credential, configuration or artwork payload; captured history and every application feature retained",
   "contentReview": {
-    "reviewedSyntheticFixture": "One fixed synthetic POSIX home-directory test fixture; not a personal runtime path",
-    "privateArtifactsIncluded": false
+    "privateArtifactsIncluded": false,
+    "existingSyntheticFixture": "One fixed synthetic home-directory fixture in a test, manually reviewed; not a private runtime path"
   }
 }

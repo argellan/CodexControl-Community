@@ -13,5 +13,17 @@
   "uninstallPreservesData": true,
   "archiveTransport": "local-native",
   "repoVisibility": "private",
-  "status": "LOCAL_TEST_CANDIDATE_NOT_RELEASE_QUALIFIED"
+  "status": "LOCAL_TEST_CANDIDATE_NOT_RELEASE_QUALIFIED",
+  "existingInstallationUpdate": {
+    "supported": true,
+    "privateInstance": "preserved-in-place",
+    "verifiedPrivateBackup": true,
+    "regeneratesCredentials": false,
+    "initializesExistingInstance": false,
+    "rollback": "application-only",
+    "interruptedUpdateRecovery": true,
+    "processStop": "verified-owned-graceful",
+    "readiness": "owned-launcher-operational-receipt",
+    "customApplicationFiles": "retained-or-update-refused-on-conflict"
+  }
 }

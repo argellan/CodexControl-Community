@@ -2,10 +2,9 @@
   "schemaVersion": 1,
   "status": "OWNER_AUTHORIZED_PREVIEW_QUALIFICATION_DEFERRED",
   "finalRuntime": false,
-  "generatedAt": "2026-11-07T21:58:52.706950+00:00",
-  "sourceDigest": "e160e6bc0121cc3b0bedbe7d1ac8f8742bce3d3498d8a24aa4827143f6602269",
-  "installedCandidateDigest": "7f1bcc6a1ba4dbb04da72be50f436701763ec4b9805b704062af0910cfeeb692",
-  "releaseTag": "v0.1.0-preview.2",
+  "generatedAt": "2026-11-07T23:11:22.778099+00:00",
+  "sourceDigest": "433ebf6274f9230d48b802ab4b23524fc8aa2ad58f17a1c26f9ce5c11f57688b",
+  "releaseTag": "v0.1.0-preview.3",
   "files": [
     {
       "path": ".gitattributes",
@@ -59,13 +58,13 @@
     },
     {
       "path": "PREVIEW_RELEASE.md",
-      "sha256": "a5d604170c4cad0e5f8399a54f0344f8bf3d6d96f4ef74891f57402669267f63",
-      "bytes": 4672
+      "sha256": "92d4f018844563ae65483fbf1a54295b9b924ef01ff4d678a922007faf62b6bd",
+      "bytes": 5450
     },
     {
       "path": "README.md",
-      "sha256": "af9fe4690fdb9ecee420da28134c4a49a44155d4ae482a80fa0ffe782c65a36b",
-      "bytes": 2616
+      "sha256": "b5bfadc39ab8fe56413d54bca68544ad7d5078058308c7c3fe3f36e7f7a53807",
+      "bytes": 2862
     },
     {
       "path": "RELEASE_PREPARATION_VALIDATION.md",
@@ -74,8 +73,8 @@
     },
     {
       "path": "RELEASE_PROVENANCE.json",
-      "sha256": "98ccd44a57d581647d1ace32e6672e6ffdf1cfbe35cf8eea436ee23d949014d6",
-      "bytes": 63721
+      "sha256": "540c0a184205222925d54e8978a6c4a104ef6dc33872a4a6d4c7ff6514c88cff",
+      "bytes": 64216
     },
     {
       "path": "RELEASE_STATUS.md",
@@ -116,6 +115,11 @@
       "path": "UPDATE.md",
       "sha256": "1c8cd0a20c4771f69e810642c75fb28107d915a396717b82da54dafedda437eb",
       "bytes": 9041
+    },
+    {
+      "path": "WINDOWS_UPGRADE.md",
+      "sha256": "5bbec86d7ee62fccb11e6811be0ce44e369200de66b2561e0e09fe0a49ea6cc0",
+      "bytes": 2662
     },
     {
       "path": "collector.mjs",
@@ -1574,8 +1578,8 @@
     },
     {
       "path": "release/README.md",
-      "sha256": "af9fe4690fdb9ecee420da28134c4a49a44155d4ae482a80fa0ffe782c65a36b",
-      "bytes": 2616
+      "sha256": "b5bfadc39ab8fe56413d54bca68544ad7d5078058308c7c3fe3f36e7f7a53807",
+      "bytes": 2862
     },
     {
       "path": "release/SECURITY.md",
@@ -1644,18 +1648,23 @@
     },
     {
       "path": "release/runtime-files.json",
-      "sha256": "afaaaf397ac696f7a2c1214eac499df76436d1a9ef3851c34eddc8bc6d46c58c",
-      "bytes": 19762
+      "sha256": "1b356cdd8f5a621a37fb08ab627180dcc19ab963f3bd4e0293be65bd2ec11814",
+      "bytes": 19833
+    },
+    {
+      "path": "release/windows/Installer.Update.cs",
+      "sha256": "20879deb715c43beb16b40048b73e81f8a79fe1d48ebb2f29fefa70a0bc71b39",
+      "bytes": 31028
     },
     {
       "path": "release/windows/Installer.cs",
-      "sha256": "d8006754142cddd00b91a26c0c1957f09a5970ef600123a27aa0e58a3b101d50",
-      "bytes": 27245
+      "sha256": "24921e38b2ed0346990f60e95c8657f25248d0918c54936721d5cf7945a467af",
+      "bytes": 31521
     },
     {
       "path": "release/windows/installer-contract.json",
-      "sha256": "91bf394fe6c5734bf9264e440884f884c6400c56728a96a090c6653197d2b476",
-      "bytes": 439
+      "sha256": "876ff32f1b56291292ec5d7323631fec012427fa13d877019d10d285d71477b0",
+      "bytes": 919
     },
     {
       "path": "ruff.toml",
@@ -1704,8 +1713,8 @@
     },
     {
       "path": "scripts/build-windows-installer.mjs",
-      "sha256": "bbfbfc71f87576f590287a5c4f437daa67e148f42ccdf2f895381c0a9645e8f8",
-      "bytes": 7275
+      "sha256": "b9a1dabe569755cb214daed702699fb0ed78bb06fcc74903528cd0331cf26230",
+      "bytes": 7329
     },
     {
       "path": "scripts/community-doctor.mjs",
@@ -1791,6 +1800,11 @@
       "path": "scripts/setup-instance.mjs",
       "sha256": "9deab361451957eaf279b8a0b93a3e484b3a15ae0d9be97aa635642e6cf2e213",
       "bytes": 11129
+    },
+    {
+      "path": "scripts/test-windows-upgrade.mjs",
+      "sha256": "1eed6736d6cfa052e64e74d92bdfb98b60b73511aed12a4d4f2096a12eaf093a",
+      "bytes": 16046
     },
     {
       "path": "scripts/validate-release-register.ps1",

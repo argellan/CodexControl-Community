@@ -1,9 +1,9 @@
-# CodexControl Community 0.1.0 — Windows preview 2
+# CodexControl Community 0.1.0 — Windows preview 3
 
 Author: Bishop Crockett  
 Owner: Argellan.com
 
-[Download the Windows x64 installer](https://github.com/argellan/CodexControl-Community/releases/download/v0.1.0-preview.2/CodexControl-Community-0.1.0-Setup.exe). This release contains the dashboard fixes verified in the Owner's installed Windows app. The original preview remains available under its original tag.
+[Download the Windows x64 installer](https://github.com/argellan/CodexControl-Community/releases/download/v0.1.0-preview.3/CodexControl-Community-0.1.0-Setup.exe). This release contains the dashboard fixes verified in the Owner's installed Windows app. The original preview remains available under its original tag.
 
 Install on your Windows x64 computer. Node.js, Python and DuckDB are bundled; no Raspberry Pi, remote server, WSL or container is required. Standalone is the default. Change the installation role to Hub or Node in Settings; Linux/Pi computers can report as Nodes. macOS distribution follows later.
 
@@ -32,6 +32,8 @@ Published under the Owner's explicit instruction to defer outstanding release qu
 
 ## Existing installations and integrity
 
-This installer supports a fresh installation. It refuses to overwrite existing application and private-instance directories. Do not delete captured data or credentials to work around that protection. The Owner's installation received a separately backed-up application-only update; that does not establish a general in-place installer upgrade qualification.
+The installer detects the normal existing installation and offers Update Community. The application is staged and verified, its exact owned runtime closes gracefully, and the existing private instance receives a verified offline backup. It preserves captured history, settings, existing passwords, paired devices, roles, artwork and every dashboard feature. Upgrade never runs first-time setup or regenerates credentials. Application rollback and interrupted-update recovery keep current private data in place instead of restoring an older snapshot over later records. See WINDOWS_UPGRADE.md for the supported layout, backups and recovery behavior.
 
-The base application version remains 0.1.0; the GitHub tag identifies preview 2. The executable is unsigned. Verify the download against the release's `SHA256SUMS.txt`. Bundled runtime licenses and third-party notices are preserved. `RELEASE_PROVENANCE.json` binds this release to the installed candidate, source hashes and installer hash. Private captures, databases, credentials, personal artwork and machine identifiers are excluded.
+Native synthetic verification exercises retained SQLite observations/quota history, personal-password hashes, encrypted first-sign-in data, presentation settings, unmanaged application additions, rollback around the directory swap, interruption recovery, ownership rejection and running stop/restart. Exact result counts and source bindings are recorded in RELEASE_PROVENANCE.json. These checks do not establish physical power-loss or complete Windows security/durability acceptance.
+
+The base application version remains 0.1.0; the GitHub tag identifies preview 3. The executable is unsigned. Verify the download against the release's `SHA256SUMS.txt`. Bundled runtime licenses and third-party notices are preserved. `RELEASE_PROVENANCE.json` binds this release to the installed candidate, source hashes and installer hash. Private captures, databases, credentials, personal artwork and machine identifiers are excluded.

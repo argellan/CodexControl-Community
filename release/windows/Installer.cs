@@ -21,7 +21,7 @@ using System.Threading;
 [assembly: AssemblyCompany("ARGELLAN")]
 [assembly: AssemblyProduct("CodexControl Community")]
 [assembly: AssemblyVersion("0.1.0.0")]
-static class Installer {
+static partial class Installer {
  const string Version="0.1.0";
  static readonly JavaScriptSerializer Json=new JavaScriptSerializer { MaxJsonLength=8388608 };
  static string OwnExe { get { return Assembly.GetExecutingAssembly().Location; } }
@@ -196,7 +196,8 @@ static class Installer {
  static void Install(Dictionary<string,string> args) {
   string destination=RealLocal(args["destination"]),instance=RealLocal(args["instance"]);
   if(destination.Equals(instance,StringComparison.OrdinalIgnoreCase)||instance.StartsWith(destination+"\\",StringComparison.OrdinalIgnoreCase)||destination.StartsWith(instance+"\\",StringComparison.OrdinalIgnoreCase))throw new Exception("Application and private instance must be separate");
-  if(Directory.Exists(destination)||File.Exists(destination)||Directory.Exists(instance)||File.Exists(instance))throw new Exception("Existing app or instance preserved; fresh destination required");
+  if(Directory.Exists(destination)&&File.Exists(Path.Combine(destination,"CE_INSTALLATION.json"))&&Directory.Exists(instance)) {Update(args,Console.WriteLine,()=>false);return;}
+  if(Directory.Exists(destination)||File.Exists(destination)||Directory.Exists(instance)||File.Exists(instance))throw new Exception("Existing unrecognized app or instance preserved; choose its original installer location");
   if(args.ContainsKey("test-only")&&!destination.Contains("TEST_ONLY"))throw new Exception("TEST_ONLY installation requires a visibly marked destination");
   int port=DefaultPort();if(args.ContainsKey("port")&&(!Int32.TryParse(args["port"],out port)||port<1024||port>65535))throw new Exception("Invalid port");
   if(!LocalPortAvailable(port))throw new Exception("The selected dashboard port is already in use. Existing applications were left running.");
@@ -212,7 +213,7 @@ static class Installer {
   var command="--max-old-space-size=256 "+Quote(bootstrap)+" --initialize --instance="+Quote(instance)+" --port="+port+" --role="+role;
   if(source.Length>0)command+=" --session-root="+Quote(source);
   if(Run(node,command,destination,false,30000)!=0)throw new Exception("Private instance setup failed; extracted files retained");
-  File.WriteAllText(Path.Combine(destination,"CE_INSTALLATION.json"),Json.Serialize(new {version=Version,instance=instance,application=destination,testOnly=args.ContainsKey("test-only"),role=role,dataRetention="preserved"}),Encoding.UTF8);
+  File.WriteAllText(Path.Combine(destination,"CE_INSTALLATION.json"),Json.Serialize(new {version=Version,instance=instance,application=destination,testOnly=args.ContainsKey("test-only"),role=role,dataRetention="preserved",upgradeReadiness=1}),Encoding.UTF8);
   if(!args.ContainsKey("no-shortcuts")) {
    var menu=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu),"Programs","ARGELLAN CodexControl Community");Directory.CreateDirectory(menu);
    WriteLink(Path.Combine(menu,"CodexControl Community.lnk"),Path.Combine(destination,"CodexControl-Community.exe"));
@@ -224,7 +225,11 @@ static class Installer {
   try {var type=Type.GetTypeFromProgID("WScript.Shell",true);shell=Activator.CreateInstance(type);shortcut=type.InvokeMember("CreateShortcut",BindingFlags.InvokeMethod,null,shell,new object[]{file});var t=shortcut.GetType();t.InvokeMember("TargetPath",BindingFlags.SetProperty,null,shortcut,new object[]{exe});t.InvokeMember("WorkingDirectory",BindingFlags.SetProperty,null,shortcut,new object[]{Path.GetDirectoryName(exe)});t.InvokeMember("Description",BindingFlags.SetProperty,null,shortcut,new object[]{"ARGELLAN CodexControl Community"});t.InvokeMember("Save",BindingFlags.InvokeMethod,null,shortcut,null);}
   finally {if(shortcut!=null)System.Runtime.InteropServices.Marshal.ReleaseComObject(shortcut);if(shell!=null)System.Runtime.InteropServices.Marshal.ReleaseComObject(shell);}
  }
- static void Launch(string root,bool openBrowser) {
+ static void Launch(string root,bool openBrowser,string upgradeStart=null) {
+  var update=UpgradeLocator(root);if(File.Exists(update)) {
+   var pending=UpgradeJson(update,65536);object nonce;
+   if(!pending.TryGetValue("startupNonce",out nonce)||!Equals(nonce,upgradeStart)||!Equals(pending["phase"],"starting"))throw new Exception("An application update is in progress. Wait for the installer to finish or run it again to recover.");
+  }
   var metadata=Json.Deserialize<Dictionary<string,object>>(File.ReadAllText(Path.Combine(root,"CE_INSTALLATION.json")));
   var instance=RealLocal((string)metadata["instance"]);
   string instanceId=DashboardInstance(instance),origin=DashboardOrigin(instance);
@@ -236,9 +241,12 @@ static class Installer {
   foreach(var name in new[]{"NODE_OPTIONS","NODE_PATH","PYTHONPATH","PYTHONHOME"})start.EnvironmentVariables.Remove(name);
   using(var child=new Process{StartInfo=start}){
    int opened=0;
-   child.OutputDataReceived+=(sender,e)=>{if(e.Data==null)return;Console.WriteLine(e.Data);if(!openBrowser||!e.Data.StartsWith("{"))return;try{
+   child.OutputDataReceived+=(sender,e)=>{if(e.Data==null)return;Console.WriteLine(e.Data);if(!e.Data.StartsWith("{"))return;try{
     var ready=Json.Deserialize<Dictionary<string,object>>(e.Data);object status,id;
-    if(ready.TryGetValue("status",out status)&&Equals(status,"COMMUNITY_READY")&&ready.TryGetValue("instanceId",out id)&&Equals(id,instanceId)&&SameDashboard(origin,instanceId)&&Interlocked.CompareExchange(ref opened,1,0)==0)OpenDashboard(origin);
+    if(ready.TryGetValue("status",out status)&&Equals(status,"COMMUNITY_READY")&&ready.TryGetValue("instanceId",out id)&&Equals(id,instanceId)&&SameDashboard(origin,instanceId)){
+     var hub=UpgradeJson(Path.Combine(instance,"hub.json"));UpgradeWrite(Path.Combine((string)hub["dataDirectory"],"launcher-ready.json"),new {instanceId=instanceId,launcherPid=Process.GetCurrentProcess().Id,runtimePid=child.Id,readyAt=DateTime.UtcNow.ToString("o")});
+     if(openBrowser&&Interlocked.CompareExchange(ref opened,1,0)==0)OpenDashboard(origin);
+    }
    }catch{Console.Error.WriteLine("The dashboard is running at "+origin+". Open this address in your browser.");}};
    child.Start();child.BeginOutputReadLine();child.WaitForExit();
    if(child.ExitCode!=0)throw new Exception("Runtime stopped with exit "+child.ExitCode);
@@ -246,23 +254,35 @@ static class Installer {
  }
  static void Wizard() {
   Application.EnableVisualStyles();var form=new Form{Text="CodexControl Community 0.1.0 — ARGELLAN",Width=720,Height=410,StartPosition=FormStartPosition.CenterScreen,FormBorderStyle=FormBorderStyle.FixedDialog,MaximizeBox=false,AutoScaleMode=AutoScaleMode.Font,Font=new System.Drawing.Font("Segoe UI",10),AccessibleName="CodexControl Community installer"};
-  var label=new Label{Left=24,Top=20,Width=660,Height=80,Text="CodexControl Community for this computer\r\nStarts on this computer. Change Standalone, Hub or Node in Settings.\r\nNode.js, Python and local archive analytics are bundled."};
+  var home=DefaultHome();var destination=Path.Combine(home,"app-0.1.0");var instance=Path.Combine(home,"instance");bool updating=File.Exists(Path.Combine(destination,"CE_INSTALLATION.json"))||File.Exists(UpgradeLocator(destination));
+  var label=new Label{Left=24,Top=20,Width=660,Height=80,Text=updating?"Update CodexControl Community\r\nKeep your captured history, settings, accounts and connected devices.\r\nThe installer will close and reopen only this installation.":"CodexControl Community for this computer\r\nStarts on this computer. Change Standalone, Hub or Node in Settings.\r\nNode.js, Python and local archive analytics are bundled."};
   var capture=new CheckBox{Left=24,Top=112,Width=660,Height=42,Text="Read my local Codex activity, quota and Dot (prompts and raw output excluded)",Checked=true,TabIndex=0,AccessibleName="Observe local Codex metadata"};
+  if(updating){capture.Enabled=false;capture.Text="Keep my existing collection settings";capture.AccessibleName="Existing collection settings are retained";}
   var note=new Label{Left=24,Top=165,Width=660,Height=75,Text="Installs for this Windows user. Private captured history lives outside the application.\r\nChange this installation to Hub or Node from Settings when needed.\r\nLocal preview; release qualification remains separate."};
+  if(updating)note.Text="A verified private backup is retained before replacing the application.\r\nYour existing password and installation role stay the same.";
   var launch=new CheckBox{Left=24,Top=250,Width=620,Height=34,Text="Open CodexControl after installation",Checked=true,TabIndex=1};
   var install=new Button{Left=490,Top=300,Width=180,Height=44,Text="&Install Community",TabIndex=2};var cancel=new Button{Left=340,Top=300,Width=130,Height=44,Text="&Cancel",TabIndex=3};cancel.Click+=(s,e)=>form.Close();
-  install.Click+=(s,e)=>{try{install.Enabled=false;var home=DefaultHome();var args=new Dictionary<string,string>{{"destination",Path.Combine(home,"app-0.1.0")},{"instance",Path.Combine(home,"instance")}};if(capture.Checked)args["session-root"]=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),".codex","sessions");Install(args);if(launch.Checked)Process.Start(new ProcessStartInfo(Path.Combine(args["destination"],"CodexControl-Community.exe")){UseShellExecute=true});else ShowInitialSignIn(args["instance"]);form.Close();}catch(Exception error){MessageBox.Show(error.Message,"Installation stopped; existing data preserved");install.Enabled=true;}};
+  if(updating)install.Text="&Update Community";
+  var worker=new System.ComponentModel.BackgroundWorker{WorkerReportsProgress=true,WorkerSupportsCancellation=true};bool busy=false;
+  worker.DoWork+=(s,e)=>{var args=(Dictionary<string,string>)e.Argument;if(updating)e.Result=Update(args,text=>worker.ReportProgress(0,text),()=>worker.CancellationPending);else {Install(args);e.Result=null;}};
+  worker.ProgressChanged+=(s,e)=>note.Text=(string)e.UserState;
+  worker.RunWorkerCompleted+=(s,e)=>{busy=false;install.Enabled=true;capture.Enabled=!updating;launch.Enabled=true;cancel.Enabled=true;if(e.Error!=null){note.Text="Your existing data has been retained.";MessageBox.Show(e.Error.GetBaseException().Message,"Update stopped; data preserved");return;}if(launch.Checked){if(updating){if(ShowInitialSignIn(instance))OpenDashboard(DashboardOrigin(instance));}else Process.Start(new ProcessStartInfo(Path.Combine(destination,"CodexControl-Community.exe")){UseShellExecute=true});}else if(!updating)ShowInitialSignIn(instance);form.Close();};
+  form.FormClosing+=(s,e)=>{if(busy){e.Cancel=true;worker.CancelAsync();note.Text="Finishing the current safe step before closing. Your data is retained.";}};
+  install.Click+=(s,e)=>{if(busy)return;busy=true;install.Enabled=false;capture.Enabled=false;launch.Enabled=false;var args=new Dictionary<string,string>{{"destination",destination},{"instance",instance}};if(updating){if(launch.Checked)args["launch"]="";}else if(capture.Checked)args["session-root"]=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),".codex","sessions");worker.RunWorkerAsync(args);};
   form.AcceptButton=install;form.CancelButton=cancel;form.Controls.AddRange(new Control[]{label,capture,note,launch,install,cancel});Application.Run(form);
  }
  [STAThread] public static int Main(string[] argv) {
   try {
    var args=new Dictionary<string,string>(StringComparer.Ordinal);foreach(var raw in argv){if(!raw.StartsWith("--"))throw new Exception("Use documented named arguments");var pair=raw.Substring(2).Split(new[]{'='},2);if(args.ContainsKey(pair[0]))throw new Exception("Duplicate argument");args.Add(pair[0],pair.Length==2?pair[1]:"");}
-   var allowed=new[]{"verify-payload","install","destination","instance","test-only","no-shortcuts","port","session-root","role","launch","no-browser","uninstall"};if(args.Keys.Any(k=>!allowed.Contains(k)))throw new Exception("Unknown argument");
+   var allowed=new[]{"verify-payload","install","update","recover-update","stop","stop-launcher","upgrade-start","destination","instance","test-only","no-shortcuts","port","session-root","role","launch","no-browser","uninstall"};if(args.Keys.Any(k=>!allowed.Contains(k)))throw new Exception("Unknown argument");
    if(args.ContainsKey("verify-payload")){Payload(null);return 0;}
+   if(args.ContainsKey("stop-launcher")){var destination=RealLocal(args["destination"]);var instance=RealLocal(args["instance"]);UpgradeValidateInstallation(destination,instance);var pending=UpgradeJson(UpgradeLocator(destination),65536);int launcher;if(!Int32.TryParse(args["stop-launcher"],out launcher)||!pending.ContainsKey("startedLauncherPid")||Convert.ToInt32(pending["startedLauncherPid"])!=launcher||!UpgradeSame((string)pending["destination"],destination)||!UpgradeSame((string)pending["instance"],instance))throw new Exception("Owned startup identity required");if(!UpgradeReady(instance,launcher))throw new Exception("The new application has not acknowledged its safe shutdown hooks; wait or close it before recovery");UpgradeStopFamily(launcher,destination,0,instance);Console.WriteLine("OWNED_RUNTIME_CLOSED");return 0;}
+   if(args.ContainsKey("stop")){UpgradeValidateInstallation(RealLocal(args["destination"]),RealLocal(args["instance"]));bool stopped=UpgradeStop(RealLocal(args["destination"]),RealLocal(args["instance"]),Console.WriteLine);Console.WriteLine(stopped?"OWNED_RUNTIME_CLOSED":"INSTANCE_ALREADY_OFFLINE");return 0;}
+   if(args.ContainsKey("update")||args.ContainsKey("recover-update")){var result=Update(args,Console.WriteLine,()=>false);Console.WriteLine(result.AlreadyCurrent?"UPDATE_ALREADY_CURRENT":"UPDATED Community "+Version+"; history, settings and credentials retained");if(args.ContainsKey("launch")&&!args.ContainsKey("no-browser")&&ShowInitialSignIn(args["instance"]))OpenDashboard(DashboardOrigin(args["instance"]));return 0;}
    if(args.ContainsKey("install")){Install(args);return 0;}
    var root=Path.GetDirectoryName(OwnExe);
    if(args.ContainsKey("uninstall")){if(!File.Exists(Path.Combine(root,"CE_INSTALLATION.json")))throw new Exception("Installed identity required");Console.WriteLine("DATA_PRESERVED: Close this app's console before removing its exact application folder. Private instance and archive are retained.");return 0;}
-   if(args.ContainsKey("launch")||File.Exists(Path.Combine(root,"CE_INSTALLATION.json"))){Launch(root,!args.ContainsKey("no-browser"));return 0;}
+   if(args.ContainsKey("launch")||File.Exists(Path.Combine(root,"CE_INSTALLATION.json"))){Launch(root,!args.ContainsKey("no-browser"),args.ContainsKey("upgrade-start")?args["upgrade-start"]:null);return 0;}
    Wizard();return 0;
   } catch(Exception error){Console.Error.WriteLine("CODEXCONTROL_SETUP_FAILED: "+error.Message);if(argv.Length==0)MessageBox.Show(error.Message,"CodexControl could not start",MessageBoxButtons.OK,MessageBoxIcon.Error);return 1;}
  }
