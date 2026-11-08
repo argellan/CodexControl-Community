@@ -239,6 +239,37 @@ test('compact stations use the pre-update icon layout without boxed worker cards
  }
 });
 
+test('phone map starts readable and pannable while retaining fit, routes and full names',t=>{
+ const previous=globalThis.matchMedia;globalThis.matchMedia=()=>({matches:true});t.after(()=>{if(previous===undefined)delete globalThis.matchMedia;else globalThis.matchMedia=previous;});
+ const f=fixture(t,{width:368,height:196}),name='A long worker name that must remain readable';
+ const g=graph([event('record','tool.start',-1000)],{sessions:[{...sessions[0],nickname:name}]});
+ f.view.update(g,options);
+ assert.equal(f.view.layout.readableCards,true);assert.equal(f.view.world.dataset.presentation,'readable');
+ assert.ok(f.view.scale>=.85,'the initial map retains a readable scale');
+ assert.ok(Number.parseFloat(f.view.frame.style.width)>368,'map can be panned');
+ const worker=f.view.stationNodes.get('worker:source/parent');assert.equal(worker.name.textContent,name);assert.match(worker.element.getAttribute('aria-label'),new RegExp(name));
+ assert.ok(f.view.layout.routes.length>0,'routes are retained');
+ const routeIds=f.view.layout.routes.map(route=>route.id);f.view.setZoom('fit');
+ assert.ok(Number.parseFloat(f.view.frame.style.width)<=368);assert.deepEqual(f.view.layout.routes.map(route=>route.id),routeIds);
+});
+
+test('busy phone usage renders real coins for displayed workers without truncating labels',t=>{
+ const previous=globalThis.matchMedia;globalThis.matchMedia=()=>({matches:true});t.after(()=>{if(previous===undefined)delete globalThis.matchMedia;else globalThis.matchMedia=previous;});
+ const f=fixture(t,{width:368,height:196});
+ const many=Array.from({length:8},(_,i)=>({id:'w'+i,hostId:'source',project:'Alpha',nickname:'Readable worker '+i}));
+ const g=graph(many.map((s,i)=>event('busy'+i,'tool.start',-1000,{sessionId:s.id})),{sessions:many});f.view.update(g,{...options,maxWorkers:8});
+ const actor=f.view.layout.nodes.filter(a=>a.role==='worker'||a.role==='subagent').sort((a,b)=>b.x-a.x)[0];assert.ok(actor.x>368);
+ const target=actor.node.id.replace('worker:source/','');
+ f.view.setTokenUsage(usagePayload(1),{now:reference});
+ const payload=usagePayload(18);payload.usageHistory.observations=[tokenObservation(2,{sessionId:target}),...Array.from({length:16},(_,i)=>tokenObservation(i+3,{sessionId:'offscreen'+i}))];
+ f.view.setTokenUsage(payload,{now:reference+100});
+ assert.ok(f.view.tokenMotion.packets.some(p=>p.workerId===actor.node.id),'fresh real usage for a displayed worker gets a packet');
+ let rendered=0;for(let elapsed=300;elapsed<2300;elapsed+=100){f.view.draw(f.ctx,reference+100+elapsed,drawing());rendered+=Number(f.canvas.dataset.tokenPacketCount);}
+ assert.ok(rendered>0,'actual spinning coins are painted in the initial phone viewport');
+ assert.match(f.view.stationNodes.get(actor.node.id).name.textContent,/Readable worker/);
+ assert.ok(f.layer.scrollLeft>0,'initial viewport centers the activity while keeping the world pannable');
+});
+
 test('compact stations retain task context action and qualified status in inspection labels',t=>{
  const f=fixture(t),records=[event('result','tool.end',-5000,{label:'exec · result recorded'}),event('done','complete',-1000,{label:'Turn completed · acceptance unverified'})];
  const g=graph(records,{sessions:[{...sessions[0],nickname:'Volta',taskLabel:'Release artifact review',taskLabelSource:'native-thread-name',taskLabelUpdatedAt:new Date(reference-10000).toISOString()}]});

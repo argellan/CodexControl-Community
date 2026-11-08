@@ -71,18 +71,20 @@ export class ActivityMap{
   layer.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.closest('[data-map-token-usage]')){e.preventDefault();this.selectTokenUsage();return;}const target=e.target.closest('[data-map-journey],[data-map-edge]');if((e.key==='Enter'||e.key===' ')&&target&&target.tagName.toLowerCase()!=='button'){e.preventDefault();if(target.dataset.mapJourney)this.selectJourney(target.dataset.mapJourney,this.traceGroups.get(target.dataset.mapJourney));else this.selectEdge(target.dataset.mapEdge);}if(e.key==='Escape'){this.selection=null;this.onEvent('');if(this.graph)this.update(this.graph,{...this.options,selectedEvent:''});}});
  }
  setTokenStorage(storage){this.tokenMotion.setStorage(storage);}
- setTokenUsage(payload,options={}){this.tokenMotion.feed(payload,options);this.renderTokenUsage();}
+ setTokenUsage(payload,options={}){const visibleWorkers=this.layout?.readableCards?new Set(this.layout.nodes.filter(a=>!a.hidden&&(a.role==='worker'||a.role==='subagent')).map(a=>a.node.id)):null;this.tokenMotion.feed(payload,{...options,visibleWorkers});this.renderTokenUsage();}
  setZoom(value,anchor){
-  this.zoomFactor=value==='fit'?1:value==='actual'?clampZoom(1/(this.baseScale||1)):clampZoom(value);this.zoomMode=value==='actual'?'actual':this.zoomFactor===1?'fit':'custom';
+  this.autoReadableZoom=false;
+  this.zoomFactor=value==='fit'?1:value==='actual'?clampZoom(1/(this.baseScale||1)):clampZoom(value);this.zoomMode=value==='actual'?'actual':value==='fit'?'fit':this.layout?.readableCards?'custom':this.zoomFactor===1?'fit':'custom';
   if(this.layout)this.applyZoom(anchor,value==='fit');
  }
- applyZoom(anchor,reset=false){
+ applyZoom(anchor,reset=false,center=false){
   const before=this.viewGeometry,width=this.viewportWidth,height=this.viewportHeight;
-  if(this.zoomMode==='actual')this.zoomFactor=clampZoom(1/(this.baseScale||1));
-  const after=zoomGeometry({width,height,worldWidth:this.layout.width,worldHeight:this.layout.height,baseScale:this.baseScale,zoom:this.zoomFactor});
+  const readable=this.layout.readableCards;
+  if(this.zoomMode==='actual')this.zoomFactor=readable?1:clampZoom(1/(this.baseScale||1));
+  const after=zoomGeometry({width,height,worldWidth:this.layout.width,worldHeight:this.layout.height,baseScale:readable&&this.zoomMode!=='fit'?1:this.baseScale,zoom:this.zoomFactor});
   // Routine source updates must not flush the preceding timeline writes.
-  if(!anchor&&!reset&&before&&['scale','width','height','worldWidth','worldHeight','x','y'].every(k=>before[k]===after[k]))return;
-  const scroll=reset?{x:0,y:0}:anchoredScroll(before,after,anchor||{x:width/2,y:height/2},{x:this.scrollX,y:this.scrollY});
+  if(!anchor&&!reset&&!center&&before&&['scale','width','height','worldWidth','worldHeight','x','y'].every(k=>before[k]===after[k]))return;
+  const scroll=reset?{x:0,y:0}:center?{x:Math.max(0,(after.extentWidth-width)/2),y:Math.max(0,(after.extentHeight-height)/2)}:anchoredScroll(before,after,anchor||{x:width/2,y:height/2},{x:this.scrollX,y:this.scrollY});
   this.viewGeometry=after;this.scale=after.scale;this.frame.style.width=after.extentWidth+'px';this.frame.style.height=after.extentHeight+'px';
   this.world.style.left=after.x+'px';this.world.style.top=after.y+'px';this.world.style.transform=`scale(${after.scale})`;this.world.style.setProperty('--map-scale',after.scale);this.world.dataset.overview=String(after.scale<.85);
   this.layer.scrollLeft=this.scrollX=scroll.x;this.layer.scrollTop=this.scrollY=scroll.y;this.overlayInvalid=true;
@@ -105,6 +107,12 @@ export class ActivityMap{
   const selected=graph.journeys.find(j=>j.eventIds.includes(options.selectedEvent)),selection=selected?selected.id:options.selectedEvent===''?null:this.selection,reference=options.reference??Date.now(),prefs=options.preferences||{},measured=this.measuredViewport;
   const viewportWidth=measured?.width??this.layer.clientWidth,viewportHeight=measured?.height??this.layer.clientHeight,fontSize=Number.isFinite(prefs.fontSize)?prefs.fontSize:parseFloat(getComputedStyle(this.layer).fontSize)||16;
   const projection={width:Math.max(720,viewportWidth),height:Math.max(420,viewportHeight),fontSize:fontSize,reference,windowMs:options.windowMs,selectedJourney:selection,selectedEvent:options.selectedEvent,maxWorkers:options.maxWorkers??prefs.planeWorkers??6,maxPerWorker:prefs.planeChannels??3,grouping:prefs.planeGrouping,showHosts:prefs.planeHosts,showTools:prefs.planeTools,showBranches:prefs.planeBranches,density:prefs.planeDensity,labels:prefs.planeLabels,colors:prefs.planeColors};
+  const readable=viewportWidth<=850&&globalThis.matchMedia?.('(max-width: 1100px)').matches;
+  if(readable){
+   const lines=(nodes,width)=>Math.max(1,...nodes.map(n=>Math.ceil(Array.from(stationIdentity(n).label||'').length/Math.max(1,Math.floor(width/Math.max(12,fontSize))))));
+   const workers=graph.nodes.filter(n=>n.type==='worker'||n.type==='subagent'),stations=graph.nodes.filter(n=>n.type!=='worker'&&n.type!=='subagent');
+   Object.assign(projection,{workerCardWidth:216,workerCardHeight:Math.max(88,30+lines(workers,150)*Math.ceil(fontSize*1.2)),stationWidth:136,stationHeight:Math.max(82,45+lines(stations,124)*Math.ceil(fontSize*1.2))});
+  }
   const {layout,scale}=projectTopologyFit(graph,projection,{width:viewportWidth,height:viewportHeight,mode:'fit'}),workers=layout.nodes.filter(a=>!a.hidden&&(a.node.type==='worker'||a.node.type==='subagent')).map(a=>a.node),views=workerRecordViews(graph,workers),activities=new Map(workers.map(n=>[n.id,workerActivity(n,views.get(n.id),{...options,reference})]));
   return {graph,options,previousSelection:this.selection,selection,reference,measured,viewportWidth,viewportHeight,fontSize,layout,scale,activities};
  }
@@ -114,8 +122,11 @@ export class ActivityMap{
   const {reference,layout,scale,activities}=prepared,prefs=options.preferences||{};
   this.tokenPalette=options.tokenPalette||getTokenPalette(prefs.tokenPalette,prefs.theme);
   this.viewportWidth=prepared.viewportWidth;this.viewportHeight=prepared.viewportHeight;this.fontSize=prepared.fontSize;this.layoutVersion++;this.activeLegCache=null;
-  this.baseScale=scale;this.world.dataset.presentation='compact';
-  this.layout=layout;this.world.style.width=layout.width+'px';this.world.style.height=layout.height+'px';this.world.style.minHeight=layout.height+'px';this.world.dataset.labels=layout.labels;this.applyZoom();
+  const enteringReadable=layout.readableCards&&!this.layout?.readableCards,leavingReadable=!layout.readableCards&&this.layout?.readableCards;
+  if(enteringReadable&&this.zoomMode==='fit'){this.zoomMode='actual';this.zoomFactor=1;this.autoReadableZoom=true;}
+  if(leavingReadable&&this.autoReadableZoom){this.zoomMode='fit';this.zoomFactor=1;this.autoReadableZoom=false;}
+  this.baseScale=scale;this.world.dataset.presentation=layout.readableCards?'readable':'compact';
+  this.layout=layout;this.world.style.width=layout.width+'px';this.world.style.height=layout.height+'px';this.world.style.minHeight=layout.height+'px';this.world.dataset.labels=layout.labels;this.applyZoom(null,false,enteringReadable&&this.autoReadableZoom);
   this.svg.setAttribute('viewBox',`0 0 ${layout.width} ${layout.height}`);this.svg.style.width=layout.width+'px';this.svg.style.height=layout.height+'px';this.curves.clear();this.traceGroups.clear();this.animatedLegs=[];
   const selectedJourney=graph.journeys.find(j=>j.id===this.selection),selectedNodes=new Set(selectedJourney?.legs.flatMap(l=>[l.from,l.to])||[]),nodeMap=new Map(graph.nodes.map(n=>[n.id,n]));
   this.replaceHTML(this.regions,`<span class="topology-region sources">SOURCE MACHINES</span><span class="topology-region workers">WORKERS / SUBAGENTS</span><span class="topology-region endpoints">INTERFACES / TARGETS</span>${layout.groups.map(g=>`<div class="topology-group" style="left:${g.x}px;top:${g.y}px;width:${g.width}px;height:${g.height}px"><span>${escape(g.label)}</span></div>`).join('')}`,'regionsHTML');
@@ -149,7 +160,8 @@ export class ActivityMap{
    const title=[label,identity.roleLabel,detail,activity?.taskLabel,activity?.action,state.label,state.detail,n.lastLabel||n.activityLabel,host?.label].filter(Boolean).join(' / ');
    let row=this.stationNodes.get(n.id);if(!row){const element=document.createElement('button');element.innerHTML='<span class="station-emblem"><i class="station-state" aria-hidden="true"></i></span><span class="station-label"><b></b><small></small><em></em></span>';const emblem=element.firstElementChild,copy=emblem.nextElementSibling;row={element,emblem,name:copy.children[0],detail:copy.children[1],status:copy.children[2]};this.stationNodes.set(n.id,row);}
    keepStations.add(n.id);const {element}=row,symbolHTML=stationSymbol(n,{size:n.type==='worker'?30:26});
-   patchAttribute(element,'class',`topology-station ${n.type} state-${state.kind}${selectedNodes.has(n.id)?' selected':''}`);patchAttribute(element,'data-map-node',n.id);patchAttribute(element,'data-worker-state',activity?.kind||state.kind);patchAttribute(element,'style',`left:${actor.x}px;top:${actor.y}px;--identity:${color};--station-radius:${actor.radius}px`);patchAttribute(element,'aria-label',title);
+   const readableGeometry=layout.readableCards?`;--label-width:${actor.labelBounds.width}px;--label-top:${actor.labelBounds.y-actor.y+actor.radius}px`:'';
+   patchAttribute(element,'class',`topology-station ${n.type} state-${state.kind}${selectedNodes.has(n.id)?' selected':''}`);patchAttribute(element,'data-map-node',n.id);patchAttribute(element,'data-worker-state',activity?.kind||state.kind);patchAttribute(element,'style',`left:${actor.x}px;top:${actor.y}px;--identity:${color};--station-radius:${actor.radius}px${readableGeometry}`);patchAttribute(element,'aria-label',title);
    if(row.symbolHTML!==symbolHTML){const holder=document.createElement('span');holder.innerHTML=symbolHTML;const symbol=holder.firstElementChild;row.emblem.insertBefore(symbol,row.symbol||row.emblem.firstChild);row.symbol?.remove();row.symbol=symbol;row.symbolHTML=symbolHTML;}
    patchText(row.name,label);patchText(row.detail,detail);patchText(row.status,state.label+(n.type==='host'?'':' · '+age(worker?activity.actionAt:n.lastAt,reference)));
    if(records){if(!row.records){row.records=document.createElement('b');row.records.setAttribute('class','station-records');row.emblem.append(row.records);}patchAttribute(row.records,'title',records+' directed source records');patchText(row.records,records>99?'99+':records);}else if(row.records){row.records.remove();row.records=null;}

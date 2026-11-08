@@ -235,8 +235,8 @@ const prepare=(context,key,create)=>context?(context[key]??=create()):create();
 function topologyProjection(graph,{width=900,height=460,fontSize=16,reference=graph.reference||Date.now(),windowMs=60000,selectedJourney=null,selectedEvent=null,maxWorkers=6,maxPerWorker=3,grouping='worker',showHosts=true,showTools=true,showBranches=true,density=true,labels='detailed',colors={},workerCardWidth,workerCardHeight,stationWidth,stationHeight,presentationScale=1,topPadding=40,bottomPadding=24}={},prepared){
  const requestedHeight=Number.isFinite(height)?Math.max(1,height):460,readableCards=[workerCardWidth,workerCardHeight,stationWidth,stationHeight].some(Number.isFinite);
  presentationScale=clamp(Number.isFinite(presentationScale)?presentationScale:1,.35,1.5);
- workerCardWidth=clamp(Number.isFinite(workerCardWidth)?workerCardWidth:216,160,320);workerCardHeight=clamp(Number.isFinite(workerCardHeight)?workerCardHeight:88,64,128);
- stationWidth=clamp(Number.isFinite(stationWidth)?stationWidth:136,96,220);stationHeight=clamp(Number.isFinite(stationHeight)?stationHeight:82,72,128);
+ workerCardWidth=clamp(Number.isFinite(workerCardWidth)?workerCardWidth:216,160,320);workerCardHeight=clamp(Number.isFinite(workerCardHeight)?workerCardHeight:88,64,2048);
+ stationWidth=clamp(Number.isFinite(stationWidth)?stationWidth:136,96,220);stationHeight=clamp(Number.isFinite(stationHeight)?stationHeight:82,72,2048);
  topPadding=clamp(Number.isFinite(topPadding)?topPadding:40,0,160);bottomPadding=clamp(Number.isFinite(bottomPadding)?bottomPadding:24,0,160);
  width=Math.max(720,Number.isFinite(width)?width:900);fontSize=clamp(Number.isFinite(fontSize)?fontSize:16,12,26);
  maxWorkers=clamp(Number.isInteger(maxWorkers)?maxWorkers:6,1,8);maxPerWorker=clamp(Number.isInteger(maxPerWorker)?maxPerWorker:3,1,3);
