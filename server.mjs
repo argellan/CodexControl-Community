@@ -1,4 +1,5 @@
 import {createLocalDesktopObservation} from './lib/local-desktop-observation.mjs';
+import {createProcessObserver} from './lib/process-observer.mjs';
 // Author: Bishop Crockett
 // Owner: Argellan.com
 // License: MIT
@@ -36,6 +37,7 @@ import {openGitHubRuntime} from './lib/github-runtime.mjs';
 import {createHistoricalAnalytics,historicalQueryFromParams,validateHistoricalQuery} from './lib/historical-analytics.mjs';
 import {selectWeeklyAllowance} from './lib/allowance-history.mjs';
 import {buildAccountUsageResponse} from './lib/account-usage.mjs';
+import {encodeUsageRecords} from './public/usage-workspace-model.mjs';
 import {readSpendingUsagePage} from './lib/spending-advisory.mjs';
 import {serviceHealth,readJobFeed} from './lib/targets.mjs';
 import { promises as fs, watch } from 'node:fs';
@@ -60,6 +62,8 @@ for(const file of ['workspace-sizing.mjs','diagnostics-workspace.mjs','diagnosti
 staticFiles.set('/projects-workspace.mjs',['public/projects-workspace.mjs','text/javascript']);
 staticFiles.set('/github-return.mjs',['public/github-return.mjs','text/javascript']);
 staticFiles.set('/projects-workspace.css',['public/projects-workspace.css','text/css']);
+staticFiles.set('/process-workspace.mjs',['public/process-workspace.mjs','text/javascript']);
+staticFiles.set('/process-workspace.css',['public/process-workspace.css','text/css']);
 staticFiles.set('/github-workspace.mjs',['public/github-workspace.mjs','text/javascript']);
 staticFiles.set('/github-workspace.css',['public/github-workspace.css','text/css']);
 staticFiles.set('/help/github-app',['docs/design/GITHUB_APP_CONNECTION.md','text/plain']);
@@ -78,6 +82,9 @@ staticFiles.set('/account-usage.mjs',['public/account-usage.mjs','text/javascrip
 staticFiles.set('/token-motion.mjs',['public/token-motion.mjs','text/javascript']);
 staticFiles.set('/token-palette.mjs',['public/token-palette.mjs','text/javascript']);
 staticFiles.set('/usage-analytics-view.mjs',['public/usage-analytics-view.mjs','text/javascript']);
+staticFiles.set('/usage-workspace.mjs',['public/usage-workspace.mjs','text/javascript']);
+staticFiles.set('/usage-workspace-model.mjs',['public/usage-workspace-model.mjs','text/javascript']);
+staticFiles.set('/usage-workspace.css',['public/usage-workspace.css','text/css']);
 staticFiles.set('/usage-export.mjs',['public/usage-export.mjs','text/javascript']);
 staticFiles.set('/help/user-manual.pdf',['public/assets/codexcontrol-user-manual.pdf','application/pdf']);
 staticFiles.set('/help/interface-atlas.pdf',['public/assets/codexcontrol-interface-atlas.pdf','application/pdf']);
@@ -195,7 +202,7 @@ export function createServer({installation,hub,publicOrigin,proxyOrigins,tls,vie
    const cookieName='cc_local_' +String(host).split(':').at(-1),secureCookie=!!tls||publicOrigin?.startsWith('https://'),cookie=viewer=>`${cookieName}=${access.issueCookie(viewer)}; HttpOnly; SameSite=Strict; Path=/${secureCookie?'; Secure':''}`;
    const bearer=String(req.headers.authorization||'').replace(/^Bearer /,'');
    const cookieValue=String(req.headers.cookie||'').split(';').find(c=>c.trim().startsWith(cookieName+'='))?.trim().slice(cookieName.length+1),viewer=access.authenticateBearer(bearer)||access.authenticateCookie(cookieValue),authorized=!!viewer;
-   const url=new URL(req.url,`${scheme}://${host}`),staticEntry=staticFiles.get(url.pathname),representationRequest=authorized&&['GET','HEAD'].includes(req.method)&&(['/api/account/spending-status','/api/projects','/api/snapshot','/api/account/usage','/api/account/allowance-history','/api/events','/api/history','/api/integrations/github'].includes(url.pathname)||staticEntry?.[1].startsWith('text/')&&staticEntry[0]!=='public/login.js'&&!(url.pathname==='/'&&!access.requiredLogin));
+   const url=new URL(req.url,`${scheme}://${host}`),staticEntry=staticFiles.get(url.pathname),representationRequest=authorized&&['GET','HEAD'].includes(req.method)&&(['/api/account/spending-status','/api/projects','/api/snapshot','/api/account/usage','/api/account/allowance-history','/api/events','/api/history','/api/integrations/github'].includes(url.pathname)||url.pathname==='/api/processes'||url.pathname.startsWith('/api/processes/')||staticEntry?.[1].startsWith('text/')&&staticEntry[0]!=='public/login.js'&&!(url.pathname==='/'&&!access.requiredLogin));
    if(url.pathname==='/api/auth/first-sign-in'&&req.method==='GET'){
     if(!authorized)throw Object.assign(new Error('Sign in required'),{status:401});
     res.setHeader('Content-Type','application/json');res.end(JSON.stringify({required:viewer.passwordChangeRequired===true,username:viewer.username}));return;
@@ -229,6 +236,19 @@ export function createServer({installation,hub,publicOrigin,proxyOrigins,tls,vie
     const method={connect:'startAuthorization',complete:'completeAuthorization',repositories:'listRepositories',selection:'selectRepositories',disconnect:'disconnect',repository:'readRepository'}[action];
     const result=githubConnections?await githubConnections[method]({...options,...body,...(action==='repository'?{installationId:Number(url.searchParams.get('installationId')),repositoryId:Number(url.searchParams.get('repositoryId'))}:{})}):{schemaVersion:1,configured:false,readOnly:true,state:'unconfigured',reason:'app_registration_required',repositories:[],selection:[]};
     verifyGitHubAuthority();res.setHeader('Content-Type','application/json');res.end(JSON.stringify(result));return;
+   }
+   if(url.pathname==='/api/collector/process-capabilities'&&req.method==='GET'&&hub){if(!hub.authenticateCollector(bearer))throw Object.assign(new Error('Collector authentication required'),{status:401});res.setHeader('Content-Type','application/json');res.end(JSON.stringify({processTelemetryV1:true,maxBatchBytes:524288,defaultIntervalMs:30000}));return;}
+   if(url.pathname==='/api/processes'||url.pathname.startsWith('/api/processes/')){
+    const current=verifyAuthority();if(req.method!=='GET')throw Object.assign(new Error('Read only'),{status:405});
+    const requestedHost=url.searchParams.get('host');if(current.projectIds!==null)throw Object.assign(new Error('Supported process project ownership required'),{status:403});if(url.pathname!=='/api/processes/hosts'&&(!requestedHost||current.hostIds!==null&&!current.hostIds.includes(requestedHost)))throw Object.assign(new Error('Host not permitted'),{status:403});
+    if(upstream){const result=await remoteJSON(upstream,url.pathname+url.search,'GET',undefined,{validate:verifyAuthority});verifyAuthority();res.setHeader('Content-Type','application/json');await deliverRepresentation(req,res,JSON.stringify(result),{validate:verifyDelivery});return;}
+    if(!hub)throw Object.assign(new Error('Process history unavailable'),{status:503});
+    const sources=hub.hosts.filter(h=>!h.disabled&&(!h.expiresAt||Date.parse(h.expiresAt)>Date.now())).map(h=>({id:h.id,label:h.label||h.id}));
+    if(localObservation?.hostId&&!hub.hosts.some(h=>h.id===localObservation.hostId))sources.push({id:localObservation.hostId,label:localObservation.hostId});
+    if(url.pathname==='/api/processes/hosts'){const hosts=sources.filter(h=>current.hostIds===null||current.hostIds.includes(h.id));res.setHeader('Content-Type','application/json');await deliverRepresentation(req,res,JSON.stringify({hosts,readOnly:true}),{validate:verifyDelivery});return;}
+    const modes={'/api/processes':'list','/api/processes/summary':'summary','/api/processes/detail':'detail','/api/processes/history':'history'},mode=modes[url.pathname];if(!mode)throw Object.assign(new Error('Not found'),{status:404});
+    const params=new URLSearchParams(url.search);params.set('mode',mode);const allowed=sources.map(h=>h.id);
+    const result=hub.journal.processRead(current,params,allowed);verifyAuthority();res.setHeader('Content-Type','application/json');await deliverRepresentation(req,res,JSON.stringify(result),{validate:verifyDelivery});return;
    }
    if(url.pathname==='/api/analytics/history'){
     if(!authorized||!access.requiredLogin)throw Object.assign(new Error('Viewer authentication required'),{status:401});
@@ -384,7 +404,9 @@ export function createServer({installation,hub,publicOrigin,proxyOrigins,tls,vie
      res.setHeader('Content-Type','application/json');if(req.method==='HEAD'){await deliverRepresentation(req,res,null,{validate:verifyDelivery});return;}
      if(upstream){await deliverRepresentation(req,res,JSON.stringify(await remoteJSON(upstream,url.pathname+url.search)),{validate:verifyDelivery});return;}
      const params=url.searchParams,options={};
-     for(const k of params.keys())if(!['hostId','project','sessionId','details','summary','native'].includes(k)||params.getAll(k).length!==1||!params.get(k)||params.get(k).length>240||['details','summary','native'].includes(k)&&params.get(k)!=='1')throw Object.assign(new Error('Invalid usage query'),{status:400});
+     for(const k of params.keys())if(!['hostId','project','sessionId','details','summary','native','series','seriesFormat','period'].includes(k)||params.getAll(k).length!==1||!params.get(k)||params.get(k).length>240||['details','summary','native','series'].includes(k)&&params.get(k)!=='1')throw Object.assign(new Error('Invalid usage query'),{status:400});
+     const periods={ '1h':3600000,'6h':21600000,'24h':86400000,'7d':604800000 };
+     if((params.has('period')||params.has('series')||params.has('seriesFormat'))&&params.get('details')!=='1'||params.has('period')&&!Object.hasOwn(periods,params.get('period'))||params.has('seriesFormat')&&(params.get('series')!=='1'||params.get('seriesFormat')!=='columns-v1'))throw Object.assign(new Error('Invalid usage analysis period'),{status:400});
      if(params.has('hostId')&&viewer.hostIds!==null&&!viewer.hostIds.includes(params.get('hostId')))throw Object.assign(new Error('Host not permitted'),{status:403});
      if(params.has('project')&&viewer.projectIds!==null&&!viewer.projectIds.includes(params.get('project')))throw Object.assign(new Error('Project not permitted'),{status:403});
      const response=await captureForRead(hub,await readSnapshot(),local=>{
@@ -410,7 +432,7 @@ export function createServer({installation,hub,publicOrigin,proxyOrigins,tls,vie
       const {burn,epoch,...history}=hub.journal.usage({...options,now,limit:200});
       response.burnUsage={...burn,epoch};response.usageHistory={...history,epoch};
       if(params.get('summary')==='1'){for(const field of ['daily','accountObservations','accountDaily'])delete response.usageHistory[field];response.usageHistory.projection='live-summary';}
-      if(params.get('details')==='1'){response.sampleAnalytics=hub.journal.sampleAnalytics({...options,now});if(options.includeAccount&&params.get('native')==='1')for(const account of response.accountUsage.accounts||[]){const ref=account.nativeAnalytics;if(ref&&account.accountKey)account.nativeAnalyticsData=hub.journal.nativeAnalytics({digest:ref.digest,accountKey:account.accountKey,hostIds:account.hostIds.filter(id=>options.hostIds.includes(id))});}}
+      if(params.get('details')==='1'){const period=periods[params.get('period')||'24h'];response.sampleAnalytics=hub.journal.sampleAnalytics({...options,now,from:Math.max(0,now-period),to:now,includeRecords:params.get('series')==='1'});if(params.get('seriesFormat')==='columns-v1')response.sampleAnalytics.responses.records=encodeUsageRecords(response.sampleAnalytics.responses.records);if(options.includeAccount&&params.get('native')==='1')for(const account of response.accountUsage.accounts||[]){const ref=account.nativeAnalytics;if(ref&&account.accountKey)account.nativeAnalyticsData=hub.journal.nativeAnalytics({digest:ref.digest,accountKey:account.accountKey,hostIds:account.hostIds.filter(id=>options.hostIds.includes(id))});}}
      }else{response.burnUsage={status:'unavailable',windowMs:60000,workers:[],reason:'Durable usage observation is unavailable on this connection.'};response.usageHistory={status:'unavailable'};}
      return response;
      });
@@ -460,14 +482,14 @@ export function createServer({installation,hub,publicOrigin,proxyOrigins,tls,vie
  server.on('listening',()=>{releaseHistoryConnection??=hub?.journal?.retainConnection?.();releaseJournalWriter??=hub?.retainJournalWriter?.();});
  server.on('close',()=>{
   const releaseHistory=releaseHistoryConnection,releaseWriter=releaseJournalWriter;releaseHistoryConnection=undefined;releaseJournalWriter=undefined;
-  closeWork=(async()=>{try{await installation?.close();await releaseWriter?.();}finally{releaseHistory?.();stopDiagnosticObserver?.();applicationDiagnostics.close();await githubConnections?.close();await projectReader?.close();}})();
+  closeWork=(async()=>{try{await server.captureDrain?.();await installation?.close();await releaseWriter?.();}finally{releaseHistory?.();stopDiagnosticObserver?.();applicationDiagnostics.close();await githubConnections?.close();await projectReader?.close();}})();
   void closeWork.catch(()=>{});
  });
  const nativeClose=server.close.bind(server);
  server.close=function(callback){return nativeClose(error=>{void closeWork.then(()=>server.runtimeCloseWork).then(()=>callback?.(error),failure=>{if(callback)callback(error||failure);else console.error('Journal shutdown failed');});});};
  return server;
 }
-export async function startRuntime(original,{recoveryAttempt=false}={}){
+export async function startRuntime(original,{recoveryAttempt=false,processObserverFactory=createProcessObserver}={}){
  const proxyOrigins=validateProxyOrigins(original.proxyOrigins);
  const dataDirectory=path.resolve(original.dataDirectory||'.local/fleet');await fs.mkdir(dataDirectory,{recursive:true,mode:0o700});
  try{await fs.access(path.join(dataDirectory,'restore.lock'));throw new Error('An offline restore is in progress; preserve the lock and finish or recover it before starting');}catch(error){if(error.code!=='ENOENT')throw error;}
@@ -504,8 +526,33 @@ export async function startRuntime(original,{recoveryAttempt=false}={}){
  try{await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(config.port||PORT,listen,resolve);});}
  catch(error){await localObservation.close();await installation?.close();await localDiagnostics?.close().catch(()=>{});await githubIntegration?.close();await githubConnections?.close();if(configuration&&deploymentState.requiresRestart&&!recoveryAttempt){await configuration.rollback({revision:deploymentState.revision,actor:{id:'system',role:'system'}});console.error('A pending listener failed to start; restored the previous configuration');return startRuntime(original,{recoveryAttempt:true});}await fs.unlink(pidFile).catch(()=>{});throw error;}
  if(configuration&&deploymentState.requiresRestart)Object.assign(deploymentState,await configuration.activate({revision:deploymentState.revision,actor:{id:'system',role:'system'}}));
- if(hub){let collecting=false;const collect=async()=>{if(collecting)return;collecting=true;try{await installation?.recoverCaptures((local,options)=>hub.captureLocal(local,options));const local=await readLocalSnapshot(),usageCapture=await readUsageSamples(hub.journal.usageCursor(local.host.id));const ticket=await installation?.stageCapture(local,{usageCapture});await hub.captureLocal(local,{usageCapture});localObservation.committed(local);if(ticket)await installation.commitCapture(ticket.id).catch(()=>{});void installation?.flush().catch(()=>{});}catch{void localDiagnostics?.capture({kind:'backend',category:'collection-failed',site:'backend:collection'}).catch(()=>{});console.error('Local journal observation failed; retrying on next cycle');}finally{collecting=false;}};await collect();collectTimer=setInterval(collect,Math.min(1000,observationInterval));collectTimer.unref();}
- server.on('close',()=>{clearInterval(collectTimer);server.runtimeCloseWork=Promise.all([localObservation.close(),installation?.close(),localDiagnostics?.close(),githubIntegration?.close(),fs.readFile(pidFile,'utf8').then(text=>{const guard=JSON.parse(text);if(guard.pid===process.pid)return atomicJSON(pidFile,{...guard,stoppedAt:new Date().toISOString()});})]);void server.runtimeCloseWork.catch(()=>{});});
+ if(hub){
+  let collectingWork=null,pollWork=null,pendingProcesses=null,nextProcessAttempt=0,draining=false,drainWork=null;
+  const processObserver=processObserverFactory({hostId:HOST_ID,processTelemetry:config.processTelemetry});
+  const collect=()=>{
+   if(collectingWork)return collectingWork;
+   collectingWork=(async()=>{try{
+    await installation?.recoverCaptures((local,options)=>hub.captureLocal(local,options));
+    const local=await readLocalSnapshot(),usageCapture=await readUsageSamples(hub.journal.usageCursor(local.host.id));
+    if(!draining&&!pendingProcesses&&!pollWork&&config.processTelemetry?.enabled===true&&Date.now()>=nextProcessAttempt){
+     nextProcessAttempt=Date.now()+30000;
+     pollWork=Promise.resolve().then(()=>processObserver.poll()).then(samples=>{if(samples.length)pendingProcesses=samples;}).catch(()=>{void localDiagnostics?.capture({kind:'backend',category:'collection-failed',site:'backend:process-collection'}).catch(()=>{});console.error('Process observation unavailable; retrying later');}).finally(()=>{pollWork=null;});
+    }
+    const processSamples=pendingProcesses??[],ticket=await installation?.stageCapture(local,{usageCapture,processSamples});
+    if(processSamples.length&&!ticket)throw new Error('Process capture custody unavailable');
+    if(processSamples.length&&pendingProcesses===processSamples)pendingProcesses=null;
+    const committed=await hub.captureLocal(local,{usageCapture,processSamples});localObservation.committed(local);
+    if(ticket)try{await installation.commitCapture(ticket.id,{processReceipt:committed.processes});}catch(error){if(draining&&processSamples.length)throw error;}
+    if(!draining)void installation?.flush().catch(()=>{});
+   }catch(error){
+    void localDiagnostics?.capture({kind:'backend',category:'collection-failed',site:'backend:collection'}).catch(()=>{});
+    console.error('Local journal observation failed; retrying on next cycle');if(draining)throw error;
+   }})().finally(()=>{collectingWork=null;});return collectingWork;
+  };
+  server.captureDrain=()=>drainWork??=(async()=>{draining=true;clearInterval(collectTimer);if(collectingWork)await collectingWork;if(pollWork)await pollWork;if(pendingProcesses)await collect();})();
+  await collect();collectTimer=setInterval(()=>{void collect().catch(()=>{});},Math.min(1000,observationInterval));collectTimer.unref();
+ }
+ server.on('close',()=>{clearInterval(collectTimer);server.runtimeCloseWork=(async()=>{await server.captureDrain?.();await Promise.all([localObservation.close(),installation?.close(),localDiagnostics?.close(),githubIntegration?.close(),fs.readFile(pidFile,'utf8').then(text=>{const guard=JSON.parse(text);if(guard.pid===process.pid)return atomicJSON(pidFile,{...guard,stoppedAt:new Date().toISOString()});})]);})();void server.runtimeCloseWork.catch(()=>{});});
  return {server,hub,configuration,administration,installation,instanceId:config.instanceId};
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){

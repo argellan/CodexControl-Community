@@ -8,12 +8,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
-import os from 'node:os';
 import path from 'node:path';
 import {spawn} from 'node:child_process';
 import {gzipSync,gunzipSync} from 'node:zlib';
 import {fileURLToPath} from 'node:url';
 import {sanitizeAccountUsage} from '../lib/account-usage.mjs';
+import {processFixture} from './helpers/private-process-fixture.mjs';
 
 const script=fileURLToPath(new URL('../scripts/archive-receiver.py',import.meta.url));
 const PYTHON=process.env.CODEX_TEST_PYTHON||(process.platform==='win32'?'python':'python3');
@@ -27,7 +27,7 @@ const launch=(config,input=Buffer.alloc(0),args=[])=>new Promise((resolve,reject
  const child=spawn(PYTHON,[script,'--config',config,...args],{stdio:['pipe','pipe','pipe'],windowsHide:true});let stdout='',stderr='';
  child.on('error',reject);child.stdout.on('data',d=>stdout+=d);child.stderr.on('data',d=>stderr+=d);child.on('close',code=>resolve({code,stdout,stderr,json:()=>JSON.parse(stdout)}));child.stdin.on('error',()=>{});child.stdin.end(input);
 });
-async function fixture(t){const directory=await fs.mkdtemp(path.join(os.tmpdir(),'codex-archive-TEST_ONLY-'));t.after(()=>fs.rm(directory,{recursive:true,force:true}));const archiveDirectory=path.join(directory,'cold'),catalogDirectory=path.join(directory,'catalog'),config=path.join(directory,'receiver.json');await fs.writeFile(config,JSON.stringify({archiveDirectory,catalogDirectory,receiverId}),{mode:0o600});return{directory,archiveDirectory,catalogDirectory,config,run:(records,args=[])=>launch(config,gzipSync(encode(records)),args)};}
+async function fixture(t){const privateFixture=await processFixture('codex-archive-TEST_ONLY-'),directory=privateFixture.root;t.after(()=>privateFixture.cleanup());const archiveDirectory=path.join(directory,'cold'),catalogDirectory=path.join(directory,'catalog'),config=path.join(directory,'receiver.json');await fs.writeFile(config,JSON.stringify({archiveDirectory,catalogDirectory,receiverId}),{mode:0o600});return{directory,archiveDirectory,catalogDirectory,config,run:(records,args=[])=>launch(config,gzipSync(encode(records)),args)};}
 
 test('canonical ECMAScript account timestamps archive byte-exact across the complete Date range',async t=>{
  const f=await fixture(t),stamps=['0000-02-29T12:34:56.789Z','1969-12-31T23:59:59.999Z','1970-01-01T00:00:00.000Z','9999-12-31T23:59:59.999Z','+010000-01-01T00:00:00.000Z','+275760-09-13T00:00:00.000Z','-000001-12-31T23:59:59.999Z','-271821-04-20T00:00:00.000Z'];

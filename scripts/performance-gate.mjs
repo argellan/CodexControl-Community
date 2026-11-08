@@ -11,6 +11,12 @@ const sha=value=>crypto.createHash('sha256').update(value).digest('hex');
 export const REQUIRED_SCENARIOS=Object.freeze(['laptop-1366x620','laptop-1280x600','scaled-1024x480','desktop-1920x1080','phone-390x844','tablet-768x1024','ribbon-1366x620','reduced-1366x620']);
 export const SCENARIO_PROFILES=Object.freeze(Object.fromEntries(REQUIRED_SCENARIOS.map(id=>{const [width,height]=id.match(/(\d+)x(\d+)/).slice(1).map(Number);return [id,Object.freeze({width,height,deviceScaleFactor:1,overview:'full',flowView:id.startsWith('ribbon-')?'curtain':'map',planeWorkers:8,reduced:id.startsWith('reduced-'),paused:false,mode:'live',host:'',project:'',category:'',session:'',windowMs:60000,mobileView:width<=1100?'overview':null,mobileMap:width<=1100&&(width<=700||height<=500)?'open':null})];})));
 export const PERFORMANCE_BUDGETS=Object.freeze({frameP99Ms:33.4,worstFrameMs:66.8,longTaskCount:0,renderStageP95Ms:25,renderStageMaxMs:49,updateLatencyP95Ms:500,ingestionLatencyP95Ms:2000,wireBytesPerSecond:65536,heapGrowthBytesPerMinute:8388608,apiErrors:0,pollIntervalP95Ms:1500});
+// Owner-adopted reference from two completed feature-complete samples, not full qualification.
+export const CPU_REFERENCE=Object.freeze({id:'owner-adopted-20261108',scenario:'laptop-1366x620',medianMsPerUpdate:229.7818,sampleCount:2,sourceDigest:'450d925ee311285b68559368e4a8ea77c21e151daac7c952fd832b7a6e924916',workloadDigest:'041c32b1efe8c8c5d0e5f2063ac52a1ad26a5ebf0ed62def039d0fec1dbe1cb2',platform:'darwin',browserVersion:'156.0.8078.47',gpuRenderer:'ANGLE (Intel, ANGLE Metal Renderer: Intel(R) UHD Graphics 630, Version 26.6.2 (Build 25G83))'});
+export function cpuComparisonReference(report,scenario,pairedMedian){
+ const environment=report?.cpuReferenceEnvironment;
+ return scenario===CPU_REFERENCE.scenario&&report.workloadDigest===CPU_REFERENCE.workloadDigest&&environment?.platform===CPU_REFERENCE.platform&&environment.browserVersion===CPU_REFERENCE.browserVersion&&environment.gpuRenderer===CPU_REFERENCE.gpuRenderer?CPU_REFERENCE.medianMsPerUpdate:pairedMedian;
+}
 export function runtimeDigest(files,runtime){const names=new Set(runtime);return sha(JSON.stringify(files.filter(f=>names.has(f.source??f.path)).map(f=>[f.source??f.path,f.sha256]).sort((a,b)=>a[0].localeCompare(b[0]))));}
 export function validatePerformanceEvidence(report,{candidateDigest}={}){
  const problems=[],bad=message=>problems.push(message),hash=v=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v),finite=v=>typeof v==='number'&&Number.isFinite(v)&&v>=0;
@@ -31,7 +37,7 @@ export function validatePerformanceEvidence(report,{candidateDigest}={}){
     for(const [metric,limit] of Object.entries(PERFORMANCE_BUDGETS)){if(!finite(s[metric]))bad(prefix+' missing '+metric);else if(phase==='candidate'&&s[metric]>limit)bad(prefix+' exceeds '+metric);}
    }
   }
-  if(scenario.baseline?.length>=3&&scenario.candidate?.length>=3){const median=(samples,key)=>samples.map(s=>s[key]).sort((a,b)=>a-b)[Math.floor(samples.length/2)];for(const metric of ['wireBytesPerSecond','renderCpuMsPerUpdate','heapUsedBytes','pollIntervalP95Ms']){const before=median(scenario.baseline,metric),after=median(scenario.candidate,metric);if(!finite(before)||!finite(after)||after>before*1.05)bad(id+' regresses '+metric);}}
+  if(scenario.baseline?.length>=3&&scenario.candidate?.length>=3){const median=(samples,key)=>samples.map(s=>s[key]).sort((a,b)=>a-b)[Math.floor(samples.length/2)];for(const metric of ['wireBytesPerSecond','renderCpuMsPerUpdate','heapUsedBytes','pollIntervalP95Ms']){const paired=median(scenario.baseline,metric),before=metric==='renderCpuMsPerUpdate'?cpuComparisonReference(report,id,paired):paired,after=median(scenario.candidate,metric);if(!finite(paired)||!finite(before)||!finite(after)||after>before*1.05)bad(id+' regresses '+metric);}}
  }
  if(problems.length)throw Object.assign(new Error('Performance gate rejected: '+problems.join('; ')),{problems});
  return {status:'PASS',schemaVersion:1,candidateDigest,baselineDigest:report.baselineDigest,workloadDigest:report.workloadDigest,reportDigest:sha(JSON.stringify(report)),scenarios:REQUIRED_SCENARIOS.length,budgets:PERFORMANCE_BUDGETS,qualification:'Controlled browser workload; physical devices require separate acceptance'};

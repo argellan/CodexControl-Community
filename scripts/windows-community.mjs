@@ -1,5 +1,6 @@
 import {provisionDesktopOwnerLogin} from '../lib/desktop-owner-login.mjs';
 import {requireCommunityRole} from '../lib/community-platform.mjs';
+import {installCrashEvidence} from '../lib/crash-evidence.mjs';
 // Author: Bishop Crockett
 // Owner: Argellan.com
 // SPDX-License-Identifier: MIT
@@ -30,7 +31,16 @@ export async function initializeWindowsInstance({instance,port=4317,sessionRoot,
  await provisionDesktopOwnerLogin({instance});
  return {status:'WINDOWS_PRIVATE_INSTANCE_PREPARED',instanceId:result.instanceId,origin:result.origin,version:'0.1.0',role,localArchive:true,localAnalytics:true,telemetryDefault:'off'};
 }
-export async function runWindowsInstance(instance){
+export async function shutdownCommunityRuntime(server,{info=console.log,error=console.error,onSuccess=code=>process.exit(code),onFailure=()=>{process.exitCode=1;}}={}){
+ try{
+  await new Promise((resolve,reject)=>{server.close(failure=>failure?reject(failure):resolve());server.closeAllConnections();});
+  info('COMMUNITY_STOPPED_DATA_PRESERVED');onSuccess(0);return true;
+ }catch{
+  error('COMMUNITY_STOP_FAILED: durable shutdown did not complete; private data remains in place.');
+  onFailure();return false;
+ }
+}
+export async function runWindowsInstance(instance,{crashEvidence}={}){
  const install=JSON.parse(await fs.readFile(path.join(instance,'installation.json'),'utf8'));
  if(path.resolve(install.appDirectory)!==APP)throw new Error('Installation pointer differs from selected application; use the qualified update/recovery seam');
  process.env.CODEX_CONTROL_CONFIG=path.join(instance,'hub.json');process.env.CODEX_CONTROL_HOST_ID=install.hostId;process.env.CODEX_CONTROL_SESSION_ROOT=install.sessionRoot;
@@ -39,12 +49,24 @@ export async function runWindowsInstance(instance){
  const {pumpUsageArchive,loadArchiveSenderConfig}=await import('./archive-usage.mjs');
  const runtime=await startRuntime(config);let stopping=false,busy=false,timer;
  const pump=async()=>{if(stopping||busy)return;busy=true;try{const sender=await loadArchiveSenderConfig(path.join(instance,'local-archive-sender.json'));await pumpUsageArchive(sender);await tool('archive-analytics.py',path.join(instance,'local-analytics.json'),'--sync');}catch{console.error('Local archive pending; original rows retained for retry.');}finally{busy=false;}};
- const stop=async()=>{if(stopping)return;stopping=true;clearInterval(timer);for(let i=0;busy&&i<650;i++)await new Promise(r=>setTimeout(r,100));if(busy){console.error("Local archive operation still closing; private rows retained.");process.exitCode=1;return;}await new Promise(resolve=>{runtime.server.close(resolve);runtime.server.closeAllConnections();});console.log('COMMUNITY_STOPPED_DATA_PRESERVED');process.exit(0);};
- process.once('SIGINT',stop);process.once('SIGTERM',stop);
+ const stop=async()=>{if(stopping)return;stopping=true;clearInterval(timer);for(let i=0;busy&&i<650;i++)await new Promise(r=>setTimeout(r,100));if(busy){console.error("Local archive operation still closing; private rows retained.");process.exitCode=1;return;}await shutdownCommunityRuntime(runtime.server);};
+ process.once('SIGINT',()=>{crashEvidence?.signal('SIGINT');void stop();});
+ process.once('SIGTERM',()=>{crashEvidence?.signal('SIGTERM');void stop();});
  if(!process.stdin.isTTY){process.stdin.setEncoding('utf8');let input='';process.stdin.on('data',chunk=>{input+=chunk;if(input.length>64)process.stdin.pause();if(input.trim()==='stop')void stop();});}
  await pump();timer=setInterval(pump,60000);timer.unref();
  console.log(JSON.stringify({status:'COMMUNITY_READY',origin:config.publicOrigin,instanceId:runtime.instanceId,version:'0.1.0',loopbackOnly:config.listen==='127.0.0.1'}));
  console.log('Sign in with the private owner access file in your instance directory; credentials are never printed. Ctrl+C stops this instance.');
  return runtime;
 }
-if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url))try{const args=parse(process.argv.slice(2));if(args.initialize)console.log(JSON.stringify(await initializeWindowsInstance({instance:args.instance,port:Number(args.port||4317),sessionRoot:args['session-root'],role:args.role||'standalone'})));else await runWindowsInstance(args.instance);}catch{console.error('COMMUNITY_STARTUP_FAILED: private setup/runtime evidence retained; no credentials printed.');process.exitCode=1;}
+if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
+ let crashEvidence;
+ try{
+  const args=parse(process.argv.slice(2));
+  if(args.run&&process.env.CODEX_CONTROL_CRASH_RUN_ID){
+   try{crashEvidence=installCrashEvidence({directory:path.join(args.instance,'data','crash-reports'),correlationId:process.env.CODEX_CONTROL_CRASH_RUN_ID,buildId:process.env.CODEX_CONTROL_CRASH_BUILD_ID});}
+   catch{console.error('Local crash evidence unavailable; runtime continues.');}
+  }
+  if(args.initialize)console.log(JSON.stringify(await initializeWindowsInstance({instance:args.instance,port:Number(args.port||4317),sessionRoot:args['session-root'],role:args.role||'standalone'})));
+  else await runWindowsInstance(args.instance,{crashEvidence});
+ }catch(error){crashEvidence?.startup(error);console.error('COMMUNITY_STARTUP_FAILED: private setup/runtime evidence retained; no credentials printed.');process.exitCode=1;}
+}

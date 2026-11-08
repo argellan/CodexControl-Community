@@ -43,7 +43,7 @@ export function mountMobileWorkspace({document,window,onViewChange=()=>{}}) {
   root.dataset.mobileView=view;
   heading.textContent=view[0].toUpperCase()+view.slice(1);
   for(const button of nav.querySelectorAll('[data-mobile-view]')) {
-   if(button.dataset.mobileView===view)button.setAttribute('aria-current','page');
+   if(window.location.hash!=='#usage'&&button.dataset.mobileView===view)button.setAttribute('aria-current','page');
    else button.removeAttribute('aria-current');
   }
   filters.hidden=view==='more';if(scope)scope.hidden=view==='more';syncScope();

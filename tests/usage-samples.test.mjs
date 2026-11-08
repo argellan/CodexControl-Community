@@ -73,6 +73,18 @@ test('response totals deduplicate native identities, separate cumulative scopes,
  const report=summarizeUsageSamples([a,copy,b,cumulative],{now});assert.equal(report.responses.responseCount,2);assert.equal(report.responses.totals.input,1000);assert.equal(report.responses.ratios.cacheHit.value,.16);assert.equal(report.responses.ratios.reasoningShare.value,.18);assert.equal(report.responses.turns[0].responseCount,2);assert.equal(report.recent.length,4);
  const conflict=normalizeUsageSample(source({source_record_key:'e'.repeat(64),input_tokens:99}),context),bad=summarizeUsageSamples([a,conflict],{now});assert.equal(bad.responses.responseCount,0);assert.equal(bad.coverage.conflictingResponses,1);assert.equal(bad.responses.ratios.cacheHit.value,null);
 });
+test('optional analysis records retain qualified response identity and time basis without widening the default payload',()=>{
+ const a=normalizeUsageSample(source(),context),copy=normalizeUsageSample(source({source_record_key:'c'.repeat(64)}),context);
+ const receipt=normalizeUsageSample(source({source_record_key:'d'.repeat(64),native_response_id:'receipt-response',source_ms:null,time_basis:'receipt',project:null,context_model:'configured-only'}),{...context,receivedMs:now-10});
+ const excluded=normalizeUsageSample(source({source_record_key:'e'.repeat(64),native_response_id:'excluded',forked_from_id:'parent'}),context);
+ assert.equal(Object.hasOwn(summarizeUsageSamples([a],{now}).responses,'records'),false);
+ const report=summarizeUsageSamples([a,copy,receipt,excluded],{now,includeRecords:true,matchingRows:5});
+ assert.equal(report.responses.records.length,2);assert.equal(report.responses.recordsTruncated,true);
+ const value=report.responses.records.find(row=>row.responseId==='receipt-response');
+ assert.equal(value.timeBasis,'receipt');assert.equal(value.sourceAt,null);assert.equal(value.receivedAt,new Date(now-10).toISOString());
+ assert.equal(value.accountAttribution,'unknown');assert.equal(value.configuredModel,'configured-only');assert.equal(value.input,100);assert.equal(value.cached,70);
+ assert.equal(Object.hasOwn(value,'providerAccountKey'),false);assert.equal(Object.hasOwn(value,'producingModel'),false);
+});
 test('sample analytics applies host/project/session SQL scope before counts and aggregation',()=>fixture(db=>{
  captureUsageSamples(db,[source({project:'Visible'})],context);captureUsageSamples(db,[source({project:'Secret'})],{...context,hostId:'other'});const report=readUsageSampleAnalytics(db,{now,hostIds:['host'],projectIds:['Visible']});assert.equal(report.coverage.retainedRows,1);assert.equal(report.responses.totals.input,100);assert.equal(report.recent[0].host_id,'host');assert.equal(JSON.stringify(report).includes('Secret'),false);assert.equal(readUsageSampleAnalytics(db,{now,hostIds:[]}).coverage.retainedRows,0);
 }));

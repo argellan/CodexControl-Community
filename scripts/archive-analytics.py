@@ -288,7 +288,7 @@ def milliseconds(day):
 def item_values(record, line):
     row, table = record["row"], record["table"]
     version = record["version"]
-    require((version == 1 and table in receiver.V1_TABLES) or (version == 2 and table == "usage_samples_v2") or (version == 3 and table == "github_metadata"), "ANALYTICS_FAMILY")
+    require((version == 1 and table in receiver.V1_TABLES) or (version == 2 and table == "usage_samples_v2") or (version == 3 and table == "github_metadata") or (version == 4 and table == "process_observations"), "ANALYTICS_FAMILY")
     day = row.get("day")
     logical = causal = effective = response_id = account = signature = None
     received = row.get("received_ms")
@@ -313,6 +313,10 @@ def item_values(record, line):
         receiver.validate_record(record)
         counters = [None] * 7
         signature = compact([row[k] for k in ("source_id", "host_id", "project", "epoch", "sequence", "payload")])
+    elif version == 4 and table == "process_observations":
+        receiver.validate_record(record)
+        counters = [None] * 7
+        signature = row["digest"]
     if signature is None:
         signature = compact([row[k] for k in receiver.TABLES[table][0] if k != "received_ms"])
     return (record["itemId"], hashlib.sha256(line).hexdigest(), line.decode("utf-8") + "\n",

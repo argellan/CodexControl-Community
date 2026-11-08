@@ -51,6 +51,7 @@ function typedStoredState(value){
 function requireArchivedCurrentUsage(file){
  const refuse=message=>{throw Object.assign(new Error(message),{code:'ARCHIVE_CUSTODY_REQUIRED'});};
  const journal=inspectJournal(file);
+ if(journal.processes?.pendingObservations||journal.processes?.inflightRecords)refuse('Current process history archive is incomplete; drain pending records before restoring');
  if(!journal.usage)return;
  if(!journal.archive){if(Object.entries(journal.usage).some(([key,value])=>key!=='schemaVersion'&&value>0))refuse('Current usage has not entered archive custody; start the hub and complete its archive before restoring');return;}
  const db=new DatabaseSync(file,{readOnly:true});try{const status=archiveStatus(db);if(!status.bootstrapComplete||status.pendingRecords||status.inflightRecords)refuse('Current usage archive is incomplete; drain pending records before restoring');}finally{db.close();}

@@ -33,6 +33,11 @@ CodexControl must provide a deliberate, readable, touch-friendly phone and table
 
 ## Performance release admission
 
+Owner CPU-reference decision, 8 November 2026: use the scoped current-feature
+reference documented in docs/design/CPU_REFERENCE.md. Retain historical raw
+evidence and all other gates. The source-bound release exception for this
+candidate does not authorize future incomplete qualification or automatic rebasing.
+
 Every UI/feature or API change must pass the executable performance gate before final packaging or deployment. Use scripts/performance-gate.mjs through package-release.mjs --final-runtime --performance-evidence=ABSOLUTE_JSON. Missing, stale, incomplete or failing evidence blocks release; a provisional package is not deployable. Preserve the source/workload binding and raw measurements. Run at least three controlled, visible samples per required desktop, scaling, phone, tablet, Ribbon and reduced-motion scenario, with at least5,000 retained events and128 workers. Measure encoded transfer, render CPU/stage latency, frame pacing/long tasks, ingestion and display delay, and steady-state heap. Retain exact records and update cadence; do not pass by suppressing activity, slowing refresh, shrinking workload or raising budgets. Budget changes require explicit Owner direction. Record physical-device acceptance separately. Continue to use docs/CHECKPOINT.md for authority and evidence.
 
 ## Prospective ARGELLAN naming and attribution

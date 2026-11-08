@@ -225,6 +225,20 @@ static partial class Installer {
   try {var type=Type.GetTypeFromProgID("WScript.Shell",true);shell=Activator.CreateInstance(type);shortcut=type.InvokeMember("CreateShortcut",BindingFlags.InvokeMethod,null,shell,new object[]{file});var t=shortcut.GetType();t.InvokeMember("TargetPath",BindingFlags.SetProperty,null,shortcut,new object[]{exe});t.InvokeMember("WorkingDirectory",BindingFlags.SetProperty,null,shortcut,new object[]{Path.GetDirectoryName(exe)});t.InvokeMember("Description",BindingFlags.SetProperty,null,shortcut,new object[]{"ARGELLAN CodexControl Community"});t.InvokeMember("Save",BindingFlags.InvokeMethod,null,shortcut,null);}
   finally {if(shortcut!=null)System.Runtime.InteropServices.Marshal.ReleaseComObject(shortcut);if(shell!=null)System.Runtime.InteropServices.Marshal.ReleaseComObject(shell);}
  }
+ static void BestEffortError(string message) {
+  var writer=new BoundedConsoleForwarder(Console.Error,1);
+  writer.Enqueue(message);writer.Complete();writer.Join(250);
+ }
+ static CrashEvidence OpenCrashEvidence(string instance,string root) {
+  try {
+   var directory=RealLocal(Path.Combine(instance,@"data\crash-reports"));
+   if(!Directory.Exists(directory))PrivateDirectory(directory);
+   RealLocal(directory);
+   AssertPrivateDescriptor(new DirectoryInfo(directory).GetAccessControl(AccessControlSections.Access|AccessControlSections.Owner),WindowsIdentity.GetCurrent().User);
+   var manifest=Path.Combine(root,"INSTALLER_MANIFEST.json");string build=File.Exists(manifest)?UpgradeHash(manifest):"unavailable";
+   return new CrashEvidence(directory,build);
+  } catch {BestEffortError("Local crash evidence unavailable; runtime continues.");return null;}
+ }
  static void Launch(string root,bool openBrowser,string upgradeStart=null) {
   var update=UpgradeLocator(root);if(File.Exists(update)) {
    var pending=UpgradeJson(update,65536);object nonce;
@@ -237,18 +251,28 @@ static partial class Installer {
   if(SameDashboard(origin,instanceId)){if(openBrowser)OpenDashboard(origin);return;}
   var address=new Uri(origin);if(address.IsLoopback&&!LocalPortAvailable(address.Port))throw new Exception("Dashboard port "+address.Port+" is already used by another application. Existing applications and your saved data were left untouched.");
   // Foreground owner process: Ctrl+C closes only this instance's runtime.
-  var start=new ProcessStartInfo(Path.Combine(root,@"runtimes\node\node.exe"),"--max-old-space-size=256 "+Quote(Path.Combine(root,@"app\scripts\windows-community.mjs"))+" --run --instance="+Quote(instance)){UseShellExecute=false,WorkingDirectory=root,CreateNoWindow=false,RedirectStandardOutput=true};
-  foreach(var name in new[]{"NODE_OPTIONS","NODE_PATH","PYTHONPATH","PYTHONHOME"})start.EnvironmentVariables.Remove(name);
+  var evidence=OpenCrashEvidence(instance,root);
+  var start=new ProcessStartInfo(Path.Combine(root,@"runtimes\node\node.exe"),"--max-old-space-size=256 "+Quote(Path.Combine(root,@"app\scripts\windows-community.mjs"))+" --run --instance="+Quote(instance)){UseShellExecute=false,WorkingDirectory=root,CreateNoWindow=false,RedirectStandardOutput=true,RedirectStandardError=true};
+  foreach(var name in new[]{"NODE_OPTIONS","NODE_PATH","PYTHONPATH","PYTHONHOME","CODEX_CONTROL_CRASH_RUN_ID","CODEX_CONTROL_CRASH_BUILD_ID"})start.EnvironmentVariables.Remove(name);
+  if(evidence!=null){start.EnvironmentVariables["CODEX_CONTROL_CRASH_RUN_ID"]=evidence.Correlation;start.EnvironmentVariables["CODEX_CONTROL_CRASH_BUILD_ID"]=evidence.Build;evidence.Start();}
   using(var child=new Process{StartInfo=start}){
    int opened=0;
-   child.OutputDataReceived+=(sender,e)=>{if(e.Data==null)return;Console.WriteLine(e.Data);if(!e.Data.StartsWith("{"))return;try{
-    var ready=Json.Deserialize<Dictionary<string,object>>(e.Data);object status,id;
+   var stdoutForwarder=new BoundedConsoleForwarder(Console.Out,16);
+   var stderrForwarder=new BoundedConsoleForwarder(Console.Error,16);
+   Action<string,bool> output=(line,truncated)=>{if(evidence!=null)evidence.Output("stdout",line,truncated);stdoutForwarder.Enqueue(truncated?"[Long runtime output suppressed]":line);if(truncated||!line.StartsWith("{"))return;try{
+    var ready=Json.Deserialize<Dictionary<string,object>>(line);object status,id;
     if(ready.TryGetValue("status",out status)&&Equals(status,"COMMUNITY_READY")&&ready.TryGetValue("instanceId",out id)&&Equals(id,instanceId)&&SameDashboard(origin,instanceId)){
      var hub=UpgradeJson(Path.Combine(instance,"hub.json"));UpgradeWrite(Path.Combine((string)hub["dataDirectory"],"launcher-ready.json"),new {instanceId=instanceId,launcherPid=Process.GetCurrentProcess().Id,runtimePid=child.Id,readyAt=DateTime.UtcNow.ToString("o")});
      if(openBrowser&&Interlocked.CompareExchange(ref opened,1,0)==0)OpenDashboard(origin);
     }
-   }catch{Console.Error.WriteLine("The dashboard is running at "+origin+". Open this address in your browser.");}};
-   child.Start();child.BeginOutputReadLine();child.WaitForExit();
+   }catch{stderrForwarder.Enqueue("The dashboard is running at "+origin+". Open this address in your browser.");}};
+   Action<string,bool> errorOutput=(line,truncated)=>{if(evidence!=null)evidence.Output("stderr",line,truncated);stderrForwarder.Enqueue(truncated?"[Long runtime error suppressed]":line);};
+   try{child.Start();}catch{stdoutForwarder.Complete();stderrForwarder.Complete();if(evidence!=null)evidence.StartFailure();throw;}
+   var outputPump=BoundedOutputPump.Start(child.StandardOutput,output);
+   var errorPump=BoundedOutputPump.Start(child.StandardError,errorOutput);
+   child.WaitForExit();outputPump.Join(2000);errorPump.Join(2000);
+   stdoutForwarder.Complete();stderrForwarder.Complete();stdoutForwarder.Join(250);stderrForwarder.Join(250);
+   if(evidence!=null){evidence.ConsoleDropped("stdout",stdoutForwarder.Dropped);evidence.ConsoleDropped("stderr",stderrForwarder.Dropped);evidence.Exit(child.ExitCode);}
    if(child.ExitCode!=0)throw new Exception("Runtime stopped with exit "+child.ExitCode);
   }
  }
@@ -284,6 +308,6 @@ static partial class Installer {
    if(args.ContainsKey("uninstall")){if(!File.Exists(Path.Combine(root,"CE_INSTALLATION.json")))throw new Exception("Installed identity required");Console.WriteLine("DATA_PRESERVED: Close this app's console before removing its exact application folder. Private instance and archive are retained.");return 0;}
    if(args.ContainsKey("launch")||File.Exists(Path.Combine(root,"CE_INSTALLATION.json"))){Launch(root,!args.ContainsKey("no-browser"),args.ContainsKey("upgrade-start")?args["upgrade-start"]:null);return 0;}
    Wizard();return 0;
-  } catch(Exception error){Console.Error.WriteLine("CODEXCONTROL_SETUP_FAILED: "+error.Message);if(argv.Length==0)MessageBox.Show(error.Message,"CodexControl could not start",MessageBoxButtons.OK,MessageBoxIcon.Error);return 1;}
+  } catch(Exception error){BestEffortError("CODEXCONTROL_SETUP_FAILED: "+error.Message);if(argv.Length==0)MessageBox.Show(error.Message,"CodexControl could not start",MessageBoxButtons.OK,MessageBoxIcon.Error);return 1;}
  }
 }

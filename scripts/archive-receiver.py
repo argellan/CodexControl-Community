@@ -44,6 +44,7 @@ def windows_guard():
 
 MAX_BYTES = 4 * 1024 * 1024
 MAX_RECORDS = 1000
+MAX_PROCESS_RECORD_BYTES = 2 * 524288 + 4096
 SAFE_INT = 9007199254740991
 HEX = re.compile(r"^[0-9a-f]{64}$")
 ISO = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$")
@@ -366,13 +367,68 @@ def validate_github_record(record):
                 require(value in ('success','failure','neutral','cancelled','skipped','timed_out','action_required','stale','startup_failure'))
 
 
+def validate_process_record(record):
+    row = record["row"]
+    require(record["table"] == "process_observations")
+    shape(row, "sequence host_id observer_epoch source_sequence observed_ms received_ms digest payload bytes".split())
+    shape(record["rowKey"], "host_id observer_epoch source_sequence".split())
+    require(all(record["rowKey"][k] == row[k] for k in record["rowKey"]))
+    require(integer(row["sequence"], 1) and row["sequence"] == record["sequence"] and integer(row["source_sequence"], 1))
+    require(text(row["host_id"], 120) and isinstance(row["observer_epoch"], str) and re.fullmatch(r"[a-f0-9-]{36}", row["observer_epoch"]))
+    require(integer(row["observed_ms"]) and integer(row["received_ms"]) and timestamp(record["recordedAt"]) == row["received_ms"])
+    require(isinstance(row["payload"], str) and len(row["payload"].encode()) == row["bytes"] and 0 < row["bytes"] <= 524288)
+    require(hashlib.sha256(row["payload"].encode()).hexdigest() == row["digest"])
+    identity = row["host_id"] + "\n" + row["observer_epoch"] + "\n" + str(row["source_sequence"]) + "\n" + row["digest"]
+    require(hashlib.sha256(identity.encode()).hexdigest() == record["itemId"])
+    frame = parse_json(row["payload"])
+    shape(frame, ["epoch", "snapshot"])
+    require(frame["epoch"] == row["observer_epoch"])
+    snap = frame["snapshot"]
+    shape(snap, "schemaVersion sourceKind hostId bootId sequence observedAt receivedAt cores availableRamBytes collection processes".split())
+    require(snap["schemaVersion"] == 1 and snap["sourceKind"] == "local-os" and snap["hostId"] == row["host_id"] and snap["sequence"] == row["source_sequence"] and text(snap["bootId"], 120))
+    def stamp(v):
+        require(text(v, 80))
+        try:
+            parsed = dt.datetime.fromisoformat(v.replace("Z", "+00:00"))
+            require(parsed.tzinfo is not None)
+            delta = parsed.astimezone(dt.timezone.utc) - dt.datetime(1970, 1, 1, tzinfo=dt.timezone.utc)
+            return delta.days * 86400000 + delta.seconds * 1000 + delta.microseconds // 1000
+        except (ValueError, OverflowError):
+            raise Refusal("Invalid process timestamp") from None
+    require(stamp(snap["observedAt"]) == row["observed_ms"])
+    stamp(snap["receivedAt"])
+    def number(v):
+        return v is None or type(v) in (int, float) and 0 <= v <= SAFE_INT
+    require(number(snap["cores"]) and number(snap["availableRamBytes"]))
+    coverage = snap["collection"]
+    shape(coverage, "status complete scope denied enumerated".split())
+    require(coverage["status"] in ("ok", "partial", "denied", "offline", "unsupported") and type(coverage["complete"]) is bool and text(coverage["scope"], 120))
+    require(number(coverage["denied"]) and number(coverage["enumerated"]))
+    require(isinstance(snap["processes"], list) and len(snap["processes"]) <= 10000)
+    seen = set()
+    for proc in snap["processes"]:
+        shape(proc, "key pid createdAt parentPid executable role family roleBasis privateCommitBytes workingSetBytes cpuTimeMs ioBytes metricStatus sessionId".split())
+        require(integer(proc["pid"], 1) and (proc["parentPid"] is None or integer(proc["parentPid"], 0)))
+        stamp(proc["createdAt"])
+        expected = "|".join((snap["hostId"], snap["bootId"], str(proc["pid"]), proc["createdAt"]))
+        require(proc["key"] == expected and expected not in seen); seen.add(expected)
+        require(isinstance(proc["executable"], str) and (re.fullmatch(r"[a-zA-Z0-9_.-]{1,64}", proc["executable"]) or proc["executable"] == "[name unavailable]"))
+        require(proc["role"] in ("Desktop application", "Codex app-server", "Node.js runtime", "MCP tool server candidate", "Browser helper", "Development server candidate", "Test runner candidate", "Collector / observer", "Shell / launcher", "Other executable"))
+        require(proc["family"] in ("Codex", "ChatGPT", "Node.js / unattributed", "Browser", "Prototype", "Other") and proc["roleBasis"] in ("name", "local-allowlist", "self"))
+        require(proc["metricStatus"] in ("ok", "denied", "vanished", "partial"))
+        require(all(number(proc[k]) for k in ("privateCommitBytes", "workingSetBytes", "cpuTimeMs", "ioBytes", "sessionId")))
+
+
 def validate_record(record):
     shape(record, "version itemId sequence table rowKey recordedAt row".split())
-    require(type(record["version"]) is int and record["version"] in (1, 2, 3))
+    require(type(record["version"]) is int and record["version"] in (1, 2, 3, 4))
     require(isinstance(record["itemId"], str) and HEX.fullmatch(record["itemId"]))
     require(integer(record["sequence"], 1))
     recorded_ms = timestamp(record["recordedAt"])
     table, row = record["table"], record["row"]
+    if record['version'] == 4:
+        validate_process_record(record)
+        return recorded_ms
     if record['version'] == 3:
         validate_github_record(record)
         return recorded_ms
@@ -451,8 +507,11 @@ def decode_segment(compressed):
     require(0 < len(lines) <= MAX_RECORDS, "Archive record bound exceeded")
     records, seen = [], set()
     for line in lines:
-        require(line and len(line) <= 131072, "Archive record bound exceeded")
+        # V4 carries an admitted 512 KiB frame inside a JSON string. Escaping
+        # can double its bytes; other record families retain their prior bound.
+        require(line and len(line) <= MAX_PROCESS_RECORD_BYTES, "Archive record bound exceeded")
         record = parse_json(line.decode("utf-8", "strict"))
+        require(len(line) <= (MAX_PROCESS_RECORD_BYTES if type(record) is dict and record.get("version") == 4 else 131072), "Archive record bound exceeded")
         recorded_ms = validate_record(record)
         require(record["itemId"] not in seen, "Duplicate archive item")
         seen.add(record["itemId"])
@@ -558,7 +617,9 @@ def validate_storage(config):
     guard = windows_guard()
     if guard is not None:
         for name in ('archiveDirectory', 'catalogDirectory'):
-            target = Path(config[name])
+            # Report the same bounded refusal as the other path checks; the
+            # native guard still revalidates every opened handle below.
+            target = no_symlinks(config[name])
             while not target.exists():
                 target = target.parent
             guard.check(target, private=False)
@@ -709,7 +770,7 @@ def index_segment(db, relative, manifest, records):
 def receive(config, compressed):
     received_compressed_sha = hashlib.sha256(compressed).hexdigest()
     raw, records = decode_segment(compressed)
-    require(not config["timescale"].get("enabled") or all(record["version"] != 3 for record, _, _ in records), "GitHub metadata requires a receiver without the usage-only Timescale projection")
+    require(not config["timescale"].get("enabled") or all(record["version"] not in (3, 4) for record, _, _ in records), "Metadata requires a receiver without the usage-only Timescale projection")
     relative, manifest = segment_metadata(raw, compressed, records)
     db = connect(config)
     try:
@@ -822,7 +883,7 @@ def query(config, args):
     conditions, values = ["catalog_id>?"], [args.after]
     for key, value in (("host_id", args.host), ("project", args.project), ("table_name", args.table)):
         if value is not None:
-            require(text(value) and (key != "table_name" or value in (*TABLES, "github_metadata")))
+            require(text(value) and (key != "table_name" or value in (*TABLES, "github_metadata", "process_observations")))
             conditions.append(key + "=?")
             values.append(value)
     for operator, value in ((">=", args.from_ms), ("<=", args.to_ms)):

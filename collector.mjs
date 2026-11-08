@@ -18,6 +18,8 @@ import {createCodexAccountObserver} from './lib/codex-account-observer.mjs';
 import {sanitizeAccountUsage} from './lib/account-usage.mjs';
 import {createDesktopCompanionObserver} from './lib/desktop-companion.mjs';
 import {validateUsageCursor,sanitizeUsageCoverage} from './lib/observer.mjs';
+import {createProcessObserver} from './lib/process-observer.mjs';
+import {processDigest,normalizeProcessSamples} from './lib/process-history.mjs';
 
 export function sourceAddresses(configuration,interfaces=os.networkInterfaces()){
  const assigned=new Set(Object.values(interfaces).flat().map(i=>i.address));const preferred=(configuration.localAddresses||[]).filter(ip=>assigned.has(ip));return preferred.length?preferred:[undefined];
@@ -63,6 +65,13 @@ export async function verifyCollectorIdentity(configuration,localAddress,{now=Da
  const result={verified:true,origin:endpoint.origin,instanceId:response.deploymentId,protocolVersion:1};saveCache(cache,key,{checkedAt:now,result});return result;
 }
 async function onInterface(configuration,action,explicit){let lastError;for(const address of explicit!==undefined?[explicit]:sourceAddresses(configuration)){try{return await action(address);}catch(error){lastError=error;if(!retryable.has(error.code))throw error;}}throw lastError;}
+export async function pollProcessCapabilities(configuration){
+ return onInterface(configuration,async address=>{
+  const identity=await verifyCollectorIdentity(configuration,address);
+  if(!identity.verified)return {unsupported:true};
+  return requestJSON(configuration,'/api/collector/process-capabilities',{authenticated:true,localAddress:address,unsupported:[404,503]});
+ });
+}
 function validateSources(value,hostId){
  if(!Array.isArray(value)||value.length>256)throw new Error('Invalid collector source configuration');const fields=new Set(['id','hostId','kind','path','intervalMs','enabled']),seen=new Set();
  return value.map(source=>{if(!object(source)||Object.keys(source).some(k=>!fields.has(k))||!['id','hostId','kind','path','intervalMs','enabled'].every(k=>Object.hasOwn(source,k))||typeof source.id!=='string'||!/^[a-z0-9][-a-z0-9_]{0,63}$/.test(source.id)||seen.has(source.id)||source.hostId!==hostId||!['codex-log','job-feed','execution-target'].includes(source.kind)||typeof source.path!=='string'||source.path.length>1024||/[\x00-\x1f\x7f]/.test(source.path)||typeof source.enabled!=='boolean'||!Number.isSafeInteger(source.intervalMs)||source.intervalMs<250||source.intervalMs>300000)throw new Error('Invalid collector source configuration');
@@ -89,11 +98,13 @@ async function transmit(configuration,payload,localAddress){
  const ack=await requestJSON(configuration,'/api/collector',{method:'POST',body:payload,authenticated:true,localAddress,maxBytes:16000});
  if(ack.batchId!==payload.batchId||ack.hostId!==configuration.hostId)throw new Error('Acknowledgement identity mismatch');
  if(Object.hasOwn(payload,'usageSamples')&&(ack.usageSamplesCount!==payload.usageSamples.length||ack.usageSamplesSha256!==samplesDigest(payload.usageSamples)))throw new Error('Usage sample acknowledgement mismatch; pending batch retained');
+ if(payload.processSamples&&(ack.processSamplesCount!==payload.processSamples.length||ack.processSamplesSha256!==processDigest(payload.processSamples)))throw new Error('Process acknowledgement mismatch; pending batch retained');
  return ack;
 }
 export async function sendBatch(configuration,payload){
  if(!object(payload)||!Array.isArray(payload.events)||payload.events.length>500)throw new Error('Collector batch exceeds event bound');
  if(Object.hasOwn(payload,'usageSamples')&&(!Array.isArray(payload.usageSamples)||payload.usageSamples.length>1000||Buffer.byteLength(JSON.stringify(payload.usageSamples))>1048576))throw new Error('Collector usage batch exceeds bound');
+ if(payload.processSamples)normalizeProcessSamples(payload.processSamples,configuration.hostId);
  if(Buffer.byteLength(JSON.stringify(payload))>2097152)throw new Error('Collector batch exceeds byte bound');
  return onInterface(configuration,async address=>{const identity=await verifyCollectorIdentity(configuration,address);if(!identity.verified)throw new Error('Collector endpoint identity is not pinned; enroll this source before sending credentials');return transmit(configuration,payload,address);});
 }
@@ -118,14 +129,14 @@ export async function runCollectorLoop(cycle,{intervalMs=2000,signal,clock,wallC
   try{await wait(Math.max(1,retry.remaining()),signal);}catch(error){if(signal?.aborted&&error.name==='AbortError')return;throw error;}
  }
 }
-export async function runCollector(configPath,{once=false}={}){
+export async function runCollector(configPath,{once=false,processObserverFactory=createProcessObserver,targetSnapshotFactory=sampleTarget}={}){
  const configuration=JSON.parse(await fs.readFile(configPath,'utf8'));
  if(!/^[-a-z0-9]{1,64}$/.test(configuration.hostId)||typeof configuration.token!=='string'||configuration.token.length<32)throw new Error('Invalid collector configuration');
  machineGuard(configuration);
  const accountObserver=configuration.role==='execution-target'?null:createCodexAccountObserver(configuration.accountObserver);
  if(configuration.sessionRoot)process.env.CODEX_CONTROL_SESSION_ROOT=configuration.sessionRoot;
  process.env.CODEX_CONTROL_HOST_ID=configuration.hostId;
- let snapshot,configureObservation,readUsageSamples;if(configuration.role==='execution-target')snapshot=()=>sampleTarget(configuration);else{const module=await import('./server.mjs');snapshot=module.snapshot;configureObservation=module.configureObservation;readUsageSamples=module.readUsageSamples;if(typeof readUsageSamples!=='function')throw new Error('Durable numeric usage source reader unavailable');if(!once)module.watchSessionInventory();}
+ let snapshot,configureObservation,readUsageSamples;if(configuration.role==='execution-target')snapshot=()=>targetSnapshotFactory(configuration);else{const module=await import('./server.mjs');snapshot=module.snapshot;configureObservation=module.configureObservation;readUsageSamples=module.readUsageSamples;if(typeof readUsageSamples!=='function')throw new Error('Durable numeric usage source reader unavailable');if(!once)module.watchSessionInventory();}
  const spool=configuration.spool||configPath+'.outbox',cursorFile=spool+'.usage-cursor.json',destination=cursorDestination(configuration),seen=new Set(),bootstrapIds=new Set();let pending,pendingPersisted=false,pendingCursor=null,usageCursor=null,observed=false,appliedRevision=null,configurationManaged=false,forceConfigurationPoll=false;
  try{const saved=await readBoundedJSON(cursorFile,17825792);if(!object(saved)||saved.version!==1||!sameDestination(saved.destination,destination))throw new Error('Numeric usage cursor destination mismatch; checkpoint retained');usageCursor=validateUsageCursor(saved.cursor);}catch(error){if(error.code!=='ENOENT')throw error;}
  try{
@@ -135,9 +146,12 @@ export async function runCollector(configPath,{once=false}={}){
   if(!object(pending)||pending.hostId!==configuration.hostId||!Array.isArray(pending.events)||pending.events.length>500||!Array.isArray(pending.sessions)||pending.sessions.length>128||Buffer.byteLength(JSON.stringify(pending))>2097152||Object.hasOwn(pending,'usageSamples')&&(!Array.isArray(pending.usageSamples)||pending.usageSamples.length>1000))throw new Error('Invalid pending collector batch');
   // Preserve exact V2 wire bytes across retry. The legacy optional-account
   // recovery rule applies only to old payload-only spools without usage custody.
-  if(!enveloped&&Object.hasOwn(pending,'accountUsage')){const safe=accountUsageForBatch(pending.accountUsage);if(safe)pending.accountUsage=safe;else delete pending.accountUsage;}
+  if(!enveloped&&!pending.processSamples&&Object.hasOwn(pending,'accountUsage')){const safe=accountUsageForBatch(pending.accountUsage);if(safe)pending.accountUsage=safe;else delete pending.accountUsage;}
   pendingPersisted=true;
  }catch(e){if(e.code!=='ENOENT')throw e;}
+ const processObserver=processObserverFactory(configuration);let processCapability=null,processCapabilityUntil=0;
+ const processSpool=spool+'.process.json';let stagedProcesses=null,processPersisted=false;
+ try{const staged=await readBoundedJSON(processSpool,600000);if(!object(staged)||staged.version!==1||!sameDestination(staged.destination,destination))throw new Error('Process custody destination mismatch; observation retained');normalizeProcessSamples(staged.samples,configuration.hostId);stagedProcesses=staged.samples;processPersisted=true;}catch(error){if(error.code!=='ENOENT')throw error;}
  const desktopObserver=configuration.role==='execution-target'?null:createDesktopCompanionObserver(configuration.desktopCompanion,{directory:spool+'.companion'});
  const observeDesktop=()=>desktopObserver?.poll(async(metadata,artwork)=>onInterface(configuration,async address=>{const identity=await verifyCollectorIdentity(configuration,address);if(!identity.verified)throw new Error('Desktop companion requires a pinned hub');const ack=await requestJSON(configuration,'/api/collector/companion',{method:'POST',body:{metadata,artwork},authenticated:true,localAddress:address,maxBytes:4096});if(ack.artworkSha256!==metadata.artworkSha256)throw new Error('Desktop companion acknowledgement mismatch');}));
  const cycle=async()=>{
@@ -145,11 +159,13 @@ export async function runCollector(configPath,{once=false}={}){
   const policy=await pollCollectorConfiguration(configuration,{force:forceConfigurationPoll});forceConfigurationPoll=false;
   if(policy.supported&&policy.managed&&policy.revision!==appliedRevision){applyCollectorSources(configuration,policy.sources,{configureObservation});appliedRevision=policy.revision;configurationManaged=true;}else if(policy.supported&&!policy.managed){configurationManaged=false;appliedRevision=null;}
   if(!pending){
+   let processSamples=stagedProcesses||[];if(!stagedProcesses&&configuration.processTelemetry?.enabled===true){if(Date.now()>=processCapabilityUntil){processCapability=await pollProcessCapabilities(configuration);processCapabilityUntil=Date.now()+30000;}if(processCapability?.processTelemetryV1===true){processSamples=await processObserver.poll();if(processSamples.length)stagedProcesses=processSamples;}}
+   if(stagedProcesses&&!processPersisted){await writeDurablePrivateJSON(processSpool,{version:1,destination,samples:stagedProcesses});processPersisted=true;}
    const data=await snapshot();if(!observed){for(const e of data.events)bootstrapIds.add(e.id);observed=true;}const events=data.events.filter(e=>!seen.has(e.id)).slice(0,500).map(e=>configuration.role==='execution-target'?{...e,delivery:bootstrapIds.has(e.id)?'bootstrap':Date.now()-Date.parse(e.at)<10000?'live':'backfill'}:e);
    const accountUsage=accountUsageForBatch(accountObserver?(once?await accountObserver.poll():accountObserver.sample()):null);
    const usageCapture=readUsageSamples?await readUsageSamples(usageCursor):null;
    if(usageCapture){if(!Array.isArray(usageCapture.usageSamples)||usageCapture.usageSamples.length>1000)throw new Error('Invalid numeric usage capture');pendingCursor=validateUsageCursor(usageCapture.nextCursor);}
-   pending={hostId:configuration.hostId,batchId:crypto.randomUUID(),observedAt:data.observedAt,sessions:data.sessions.map(({events,...s})=>s),events,coverage:{...data.coverage,identityVerified:policy.identityVerified===true,configurationRevision:appliedRevision,configurationManaged,...(usageCapture?{numericUsage:sanitizeUsageCoverage(usageCapture.coverage)}:{})},host:data.host,...(accountUsage?{accountUsage}:{}),...(usageCapture?{usageSamples:usageCapture.usageSamples}:{}),...(desktopObserver?.sample()?{desktopCompanion:desktopObserver.sample()}:{})};
+   pending={...(processSamples.length?{processSamples}:{}),hostId:configuration.hostId,batchId:crypto.randomUUID(),observedAt:data.observedAt,sessions:data.sessions.map(({events,...s})=>s),events,coverage:{...data.coverage,identityVerified:policy.identityVerified===true,configurationRevision:appliedRevision,configurationManaged,...(usageCapture?{numericUsage:sanitizeUsageCoverage(usageCapture.coverage)}:{})},host:data.host,...(accountUsage?{accountUsage}:{}),...(usageCapture?{usageSamples:usageCapture.usageSamples}:{}),...(desktopObserver?.sample()?{desktopCompanion:desktopObserver.sample()}:{})};
    if(Buffer.byteLength(JSON.stringify(pending))>2097152)throw new Error('Collector batch exceeds byte bound; source cursor retained');
    pendingPersisted=false;
   }
@@ -157,6 +173,7 @@ export async function runCollector(configPath,{once=false}={}){
   const ack=await sendBatch(configuration,pending);if(Number.isSafeInteger(ack.configurationRevision)&&ack.configurationRevision!==policy.revision)forceConfigurationPoll=true;for(const e of pending.events)seen.add(e.id);if(seen.size>30000){const old=[...seen].slice(0,seen.size-24000);old.forEach(id=>seen.delete(id));}
   if(pendingCursor!==null){await writeDurablePrivateJSON(cursorFile,{version:1,destination,cursor:pendingCursor});usageCursor=pendingCursor;}
   if(pending.accountUsage?.nativeAnalytics?.digest)accountObserver?.acknowledgeAnalytics(pending.accountUsage.nativeAnalytics.digest);
+  if(stagedProcesses&&pending.processSamples&&processDigest(stagedProcesses)===processDigest(pending.processSamples)){await fs.unlink(processSpool);await syncDirectory(path.dirname(processSpool));stagedProcesses=null;processPersisted=false;}
   await fs.unlink(spool);await syncDirectory(path.dirname(spool));pending=null;pendingCursor=null;return ack;
  };
  if(once){try{return await cycle();}finally{accountObserver?.stop();}}

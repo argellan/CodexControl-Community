@@ -9,10 +9,11 @@ m=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(m)
 class FakeApi:
     current_sid='S-1-5-21-123'
-    def __init__(self): self.events=[];self.fail_flush=False;self.fail_move=False;self.changed=False;self.identities={}
+    def __init__(self): self.events=[];self.fail_flush=False;self.fail_move=False;self.changed=False;self.identities={};self.timestamps={};self.tunnel_on_move=False;self.substitute_on_move=False
     def open(self,path,write=False,rename=False):self.events.append(('open',str(path),write,rename));return str(path)
     def describe(self,handle):
-        return dict(owner=self.current_sid,allows=[(self.current_sid,0x1f01ff,0)],filesystem='NTFS',fixed=True,reparse=False,identity=(7,self.identities.get(handle,hash(handle)) if not self.changed else 0))
+        identifier=self.identities.get(handle,hash(handle)) if not self.changed else 0
+        return dict(owner=self.current_sid,allows=[(self.current_sid,0x1f01ff,0)],filesystem='NTFS',fixed=True,reparse=False,identity=(7,0,identifier,1,self.timestamps.get(identifier,10)))
     def close(self,handle):self.events.append(('close',handle))
     def flush(self,handle):
         self.events.append(('flush',handle))
@@ -20,7 +21,9 @@ class FakeApi:
     def move(self,source,target,flags):
         self.events.append(('move',str(source),str(target),flags))
         if self.fail_move:raise OSError('TEST_ONLY move refusal')
-        self.identities[str(target)]=self.identities.get(str(source),hash(str(source)))
+        identity=self.identities.get(str(source),hash(str(source)))
+        if self.tunnel_on_move:self.timestamps[identity]=20
+        self.identities[str(target)]=identity+1 if self.substitute_on_move else identity
 class GuardTests(unittest.TestCase):
     def test_guard_refusal_uses_existing_bounded_os_error_boundary(self):
         self.assertTrue(issubclass(m.WindowsArchiveRefusal,OSError))
@@ -59,10 +62,30 @@ class GuardTests(unittest.TestCase):
         with self.assertRaises(OSError):self.guard.publish(r'C:\TEST_ONLY\tmp',r'C:\TEST_ONLY\segment.gz')
         move=next(e for e in self.api.events if e[0]=='move');self.assertEqual(move[-1],8)
         self.assertFalse(any(e[0]=='flush' for e in self.api.events))
+    def test_only_windows_destination_exists_errors_are_classified_as_creation_races(self):
+        for code in (80,183):
+            with self.subTest(code=code),self.assertRaises(FileExistsError):m.classify_move_failure(code)
+        for code in (5,17,32,999):
+            with self.subTest(code=code),self.assertRaises(m.WindowsArchiveRefusal):m.classify_move_failure(code)
     def test_successful_publication_flushes_named_target_and_preserves_identity(self):
         self.guard.publish(r'C:\TEST_ONLY\tmp',r'C:\TEST_ONLY\segment.gz')
         self.assertTrue(any(e[0]=='flush' and e[1].endswith('segment.gz') for e in self.api.events))
         self.assertEqual(sum(e[0]=='open' for e in self.api.events),sum(e[0]=='close' for e in self.api.events))
+    def test_ntfs_creation_time_tunneling_preserves_the_held_file_identity(self):
+        self.api.tunnel_on_move=True
+        self.guard.publish(r'C:\TEST_ONLY\tmp',r'C:\TEST_ONLY\segment.gz')
+        self.assertTrue(any(e[0]=='flush' for e in self.api.events))
+    def test_different_published_file_id_is_rejected_even_when_creation_time_changes(self):
+        self.api.tunnel_on_move=True;self.api.substitute_on_move=True
+        with self.assertRaises(m.WindowsArchiveRefusal):self.guard.publish(r'C:\TEST_ONLY\tmp',r'C:\TEST_ONLY\segment.gz')
+    def test_timestamp_change_without_rename_still_refuses(self):
+        original=self.api.flush
+        def mutate(handle):
+            original(handle)
+            identifier=self.api.identities.get(handle,hash(handle))
+            self.api.timestamps[identifier]=20
+        self.api.flush=mutate
+        with self.assertRaises(m.WindowsArchiveRefusal):self.guard.flush_file(r'C:\TEST_ONLY\segment.gz')
     def test_cross_directory_and_device_paths_refused_before_api(self):
         for a,b in [(r'C:\a\tmp',r'C:\b\dest'),(r'\\server\share\tmp',r'\\server\share\dest'),(r'\\?\C:\tmp',r'\\?\C:\dest'),(r'C:\TEST_ONLY\tmp:ads',r'C:\TEST_ONLY\dest')]:
             with self.subTest(a=a),self.assertRaises(m.WindowsArchiveRefusal):self.guard.publish(a,b)

@@ -19,6 +19,12 @@ class WindowsArchiveRefusal(OSError):
 def refuse():
     raise WindowsArchiveRefusal('WINDOWS_ARCHIVE_GUARD_REFUSED')
 
+def classify_move_failure(code):
+    # Let the caller revalidate a concurrently created destination. All other
+    # failures remain closed; a destination is never replaced by this move.
+    if code in (80,183):raise FileExistsError('WINDOWS_ARCHIVE_DESTINATION_EXISTS')
+    refuse()
+
 def validate_descriptor(info, current_sid, private=True, volume_root=False):
     trusted={current_sid,'S-1-5-18','S-1-5-32-544'}
     # The OS-managed volume root is an ancestor, never a private data leaf.
@@ -65,7 +71,12 @@ class WindowsArchiveGuard:
             for i,handle in enumerate(handles):
                 info=self.api.describe(handle)
                 validate_descriptor(info,self.api.current_sid,private=private if i==len(handles)-1 else False,volume_root=i==0)
-                if info['identity']!=snapshots[i]:refuse()
+                # NTFS can tunnel a deleted destination's creation time onto
+                # the held source during rename. The volume and file index
+                # must still identify the same open object; all other holds
+                # continue to require the complete unchanged identity.
+                same_renamed_file=rename and i==len(handles)-1 and info['identity'][:3]==snapshots[i][:3]
+                if info['identity']!=snapshots[i] and not same_renamed_file:refuse()
         finally:
             close_error = None
             for handle in reversed(handles):
@@ -87,7 +98,8 @@ class WindowsArchiveGuard:
             # No REPLACE_EXISTING, COPY_ALLOWED or delayed/reboot operation.
             self.api.move(str(a),str(b),8)  # MOVEFILE_WRITE_THROUGH
             with self.hold(b,write=not directory) as published:
-                if self.api.describe(published)['identity']!=identity:refuse()
+                held_after=self.api.describe(original)['identity']
+                if held_after[:3]!=identity[:3] or self.api.describe(published)['identity']!=held_after:refuse()
                 if not directory:self.api.flush(published)
 
 class FILETIME(ctypes.Structure):
@@ -174,4 +186,5 @@ class NativeApi:
         if not self.flush_handle(handle):refuse()
 
     def move(self,source,target,flags):
-        if flags!=8 or not self.move_file(source,target,flags):refuse()
+        if flags!=8:refuse()
+        if not self.move_file(source,target,flags):classify_move_failure(ctypes.get_last_error())

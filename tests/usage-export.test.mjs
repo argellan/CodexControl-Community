@@ -55,7 +55,7 @@ test('absolute path-like identities remain excluded even with identity inclusion
 });
 
 test('SVG uses bounded dimensions, approved palette and escaped fixed text without executable/external content',()=>{
- const model=buildUsageExport(payload([row({project:'<script>alert(1)</script>'})]),{includeIdentities:true}),svg=usageExportSVG(model,{width:640,height:640,palette:'url(evil)',theme:'<script>'});assert.match(svg,/<svg[^>]+width="640"[^>]+height="640"/);assert.match(svg,/#60A5FA/);assert.doesNotMatch(svg,/<script|foreignObject|<image|href=|onload=|PRIVATE_|url\(/i);assert.match(svg,/<desc[^>]*>.*billing/);
+ const model=buildUsageExport(payload([row({project:'<script>alert(1)</script>'})]),{includeIdentities:true}),svg=usageExportSVG(model,{width:640,height:640,palette:'url(evil)',theme:'<script>'});assert.match(svg,/<svg[^>]+width="640"[^>]+height="640"/);for(const color of ['#F5C451','#FF8475','#2DD4BF'])assert.ok(svg.includes(color));assert.doesNotMatch(svg,/<script|foreignObject|<image|href=|onload=|PRIVATE_|url\(/i);assert.match(svg,/<desc[^>]*>.*billing/);
  for(const dimensions of [{width:639},{width:1601},{height:639},{height:1201},{width:Infinity},{width:'1200'}])assert.throws(()=>usageExportSVG(model,dimensions),/dimensions/);
 });
 

@@ -13,6 +13,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {verifyWindowsArchivePaths} from '../lib/windows-archive-permissions.mjs';
 import {fileURLToPath} from 'node:url';
 import {installUsageArchive,bootstrapUsageArchive,selectArchiveBatch,acknowledgeArchiveBatch,archiveStatus,setArchiveHealth} from '../lib/usage-archive.mjs';
+import {installProcessArchive,selectProcessArchiveBatch,acknowledgeProcessArchive} from '../lib/process-archive.mjs';
 
 const UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 const HEX=/^[a-f0-9]{64}$/;
@@ -27,13 +28,14 @@ const safeCode=error=>['ARCHIVE_LOCKED','ARCHIVE_LOCK_INVALID','ARCHIVE_CONFIG',
 // This is an owner-side configuration, never a browser setting. Its only SSH
 // credential reference is an absolute file path; key material is not read here.
 export function validateArchiveSenderConfig(value){
- if(!ownKeys(value,['version','database','receiverId','ssh','local','maxBatches','maxRecords','maxBytes','bootstrapLimit','timeoutMs'])||value.version!==1||!absolute(value.database)||!UUID.test(value.receiverId||''))fail('ARCHIVE_CONFIG');
+ if(!ownKeys(value,['version','database','receiverId','ssh','local','maxBatches','maxRecords','maxBytes','bootstrapLimit','timeoutMs','processHistory'])||value.version!==1||!absolute(value.database)||!UUID.test(value.receiverId||''))fail('ARCHIVE_CONFIG');
  if(Boolean(value.local)===Boolean(value.ssh)||/^(?:\\\\|\/\/)/.test(value.database))fail('ARCHIVE_CONFIG');
  const local=value.local;if(local&&(!ownKeys(local,['python','script','config'])||Object.keys(local).length!==3||Object.values(local).some(v=>!absolute(v)||/^(?:\\\\|\/\/)/.test(v))))fail('ARCHIVE_CONFIG');
  const ssh=value.ssh;if(!local&&(!ownKeys(ssh,['executable','host','port','user','identityFile','knownHostsFile'])||!absolute(ssh.executable)||!absolute(ssh.identityFile)||!absolute(ssh.knownHostsFile)||typeof ssh.host!=='string'||ssh.host.length>253||!/^\w[\w.:-]*$/.test(ssh.host)||typeof ssh.user!=='string'||!/^[_a-zA-Z][_a-zA-Z0-9.-]{0,63}$/.test(ssh.user)||!integer(ssh.port??22,1,65535)))fail('ARCHIVE_CONFIG');
  const limits={maxBatches:value.maxBatches??4,maxRecords:value.maxRecords??1000,maxBytes:value.maxBytes??2097152,bootstrapLimit:value.bootstrapLimit??1000,timeoutMs:value.timeoutMs??20000};
  for(const [key,min,max] of [['maxBatches',1,32],['maxRecords',1,1000],['maxBytes',1024,2097152],['bootstrapLimit',1,1000],['timeoutMs',50,30000]])if(!integer(limits[key],min,max))fail('ARCHIVE_CONFIG');
- return {version:1,database:path.resolve(value.database),receiverId:value.receiverId,...(local?{local:{...local}}:{ssh:{...ssh,port:ssh.port??22}}),...limits};
+ if(value.processHistory!==undefined&&typeof value.processHistory!=='boolean'||value.processHistory===true&&limits.maxBatches<2)fail('ARCHIVE_CONFIG');
+ return {version:1,processHistory:value.processHistory===true,database:path.resolve(value.database),receiverId:value.receiverId,...(local?{local:{...local}}:{ssh:{...ssh,port:ssh.port??22}}),...limits};
 }
 
 async function checkedFile(file,{privateFile=false,windowsAcl=true}={}){
@@ -143,18 +145,18 @@ export function reclaimArchivePages(db,{maxPages=256}={}){
 export async function pumpUsageArchive(configuration,{transport=sendArchiveOverSsh,signal,now=()=>Date.now()}={}){
  const config=validateArchiveSenderConfig(configuration),release=await acquireArchiveLock(config.database);let db,batches=0,records=0,bytes=0,reclaimedPages=0,maintenanceDeferred=false;const started=performance.now();
  try{
-  db=new DatabaseSync(config.database);db.exec('PRAGMA busy_timeout=3000; PRAGMA synchronous=FULL;');installUsageArchive(db);
+  db=new DatabaseSync(config.database);db.exec('PRAGMA busy_timeout=3000; PRAGMA synchronous=FULL;');installUsageArchive(db);if(config.processHistory)installProcessArchive(db);
   transaction(db,()=>setArchiveHealth(db,{receiverId:config.receiverId,status:'pending',lastAttemptAt:new Date(now()).toISOString(),errorCode:null}));
   for(let index=0;index<config.maxBatches;index++){
    if(signal?.aborted)fail('ARCHIVE_ABORTED');if(performance.now()-started>=MAX_RUN_MS)fail('ARCHIVE_TRANSPORT_TIMEOUT');
-   const batch=transaction(db,()=>{bootstrapUsageArchive(db,{limit:config.bootstrapLimit});return selectArchiveBatch(db,{maxRecords:config.maxRecords,maxBytes:config.maxBytes});});
+   let processBatch=false;const batch=transaction(db,()=>{bootstrapUsageArchive(db,{limit:config.bootstrapLimit});const bounds={receiverId:config.receiverId,maxRecords:config.maxRecords,maxBytes:config.maxBytes};if(config.processHistory&&index===config.maxBatches-1){const p=selectProcessArchiveBatch(db,bounds);if(p){processBatch=true;return p;}}const usage=selectArchiveBatch(db,bounds);if(usage)return usage;if(config.processHistory){processBatch=true;return selectProcessArchiveBatch(db,bounds);}return null;});
    if(!batch){try{reclaimedPages+=reclaimArchivePages(db);}catch{maintenanceDeferred=true;}break;}
    if(typeof batch.body!=='string'||!batch.body.endsWith('\n')||Buffer.byteLength(batch.body)>config.maxBytes||!integer(batch.records,1,config.maxRecords)||!Array.isArray(batch.itemIds)||batch.itemIds.length!==batch.records||batch.itemIds.some(id=>!HEX.test(id))||batch.rawSha256!==sha(batch.body)||batch.batchId!==batch.rawSha256)fail('ARCHIVE_DATABASE');
    transaction(db,()=>setArchiveHealth(db,{receiverId:config.receiverId,status:'sending',lastAttemptAt:new Date(now()).toISOString(),errorCode:null}));
    const compressed=gzipSync(Buffer.from(batch.body),{level:1}),remaining=Math.floor(MAX_RUN_MS-(performance.now()-started));if(remaining<1)fail('ARCHIVE_TRANSPORT_TIMEOUT');
    const raw=await boundedTransport(transport,{config,batch,compressed,signal,timeoutMs:Math.min(config.timeoutMs,remaining)});
    if(signal?.aborted)fail('ARCHIVE_ABORTED');const receipt=receiptOf(raw,batch,compressed,config.receiverId);
-   transaction(db,()=>{acknowledgeArchiveBatch(db,{batch,receipt,expectedReceiverId:config.receiverId});setArchiveHealth(db,{receiverId:config.receiverId,status:'healthy',lastAttemptAt:new Date(now()).toISOString(),lastSuccessAt:new Date(now()).toISOString(),errorCode:null});});
+   transaction(db,()=>{if(processBatch)acknowledgeProcessArchive(db,{batch,receipt,receiverId:config.receiverId});else acknowledgeArchiveBatch(db,{batch,receipt,expectedReceiverId:config.receiverId});setArchiveHealth(db,{receiverId:config.receiverId,status:'healthy',lastAttemptAt:new Date(now()).toISOString(),lastSuccessAt:new Date(now()).toISOString(),errorCode:null});});
    batches++;records+=batch.records;bytes+=Buffer.byteLength(batch.body);
    if(MAX_RUN_MS-(performance.now()-started)>2000)try{reclaimedPages+=reclaimArchivePages(db);}catch{maintenanceDeferred=true;}
   }
