@@ -464,7 +464,18 @@
     "tests/project-reader.test.mjs",
     "WINDOWS_UPGRADE.md",
     "tests/helpers/private-process-fixture.mjs",
-    "tests/helpers/history-workspace-fixture.mjs"
+    "tests/helpers/history-workspace-fixture.mjs",
+    "tests/crash-evidence.test.mjs",
+    "tests/process-api.test.mjs",
+    "tests/process-archive.test.mjs",
+    "tests/process-backup.test.mjs",
+    "tests/process-capability-security.test.mjs",
+    "tests/process-collector.test.mjs",
+    "tests/process-history.test.mjs",
+    "tests/process-installation.test.mjs",
+    "tests/process-runtime.test.mjs",
+    "tests/process-shutdown.test.mjs",
+    "tests/windows-crash-launcher.test.mjs"
   ],
   "documents": {
     "docs/design/ACCOUNT_OBSERVER.md": "docs/design/ACCOUNT_OBSERVER.md",
