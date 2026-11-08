@@ -1,4 +1,13 @@
 # CodexControl data preservation
+
+## Current product and execution target
+
+There is one product: CodexControl Community Edition. The Owner's Lenovo P15
+Gen 2 laptop is the sole authorized execution and deployment computer. Running
+the application or qualification fixtures on another computer requires fresh,
+explicit written Owner authorization. Historical Pi/server deployment paths
+and past test-bed permissions do not authorize current execution. Preserve
+historical records and all captured data; do not maintain a second product fork.
 <!--
 Author: Bishop Crockett
 Owner: Argellan.com

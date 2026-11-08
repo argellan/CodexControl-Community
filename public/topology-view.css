@@ -77,6 +77,13 @@
 .station-label>b{font-size:.75rem;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
 .station-label>small{font-size:.56rem;font-weight:400;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--identity)}
 .station-label>em{font-size:.5rem;font-style:normal;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topology-world[data-presentation=readable] .topology-station{width:calc(var(--station-radius) * 2)}
+.topology-world[data-presentation=readable] .station-label{width:var(--label-width);max-width:none}
+.topology-world[data-presentation=readable] .topology-station:is(.worker,.subagent) .station-label{position:absolute;left:calc(100% + 8px);top:var(--label-top);align-items:flex-start;text-align:left}
+.topology-world[data-presentation=readable] .station-label>b{font-size:.75rem;white-space:normal;overflow:visible;overflow-wrap:anywhere;text-overflow:clip}
+.topology-world[data-presentation=readable] .station-label>small,.topology-world[data-presentation=readable] .station-label>em{display:none}
+.topology-world[data-presentation=readable] .topology-station:is(:hover,:focus-visible,.selected) .station-label{width:var(--label-width)}
+.topology-world[data-presentation=readable] .topology-station:is(:hover,:focus-visible,.selected) .station-label>small,.topology-world[data-presentation=readable] .topology-station:is(:hover,:focus-visible,.selected) .station-label>em{display:block;white-space:normal;overflow-wrap:anywhere;font-size:.65rem}
 .topology-station:hover,.topology-station:focus-visible,.topology-station.selected{z-index:6}
 .topology-station:hover .station-emblem,.topology-station:focus-visible .station-emblem,.topology-station.selected .station-emblem{box-shadow:0 0 0 4px color-mix(in srgb,var(--identity) 22%,transparent),0 0 22px color-mix(in srgb,var(--identity) 16%,transparent)}
 .topology-station:focus-visible{outline:2px solid var(--identity)}

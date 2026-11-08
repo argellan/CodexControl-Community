@@ -25,7 +25,7 @@ export class TokenMotion{
  clear(){this.packets=[];}
  // Called on view/clock changes even when the usage feed has not polled yet.
  setMode(mode){mode=mode==='replay'?'replay':'live';if(mode!==this.mode){this.mode=mode;this.clear();this.key=null;}}
- feed(payload,{scope='all',mode='live',now=Date.now(),reduced=false,paused=false}={}){
+ feed(payload,{scope='all',mode='live',now=Date.now(),reduced=false,paused=false,visibleWorkers=null}={}){
   this.setMode(mode);const burn=payload?.burnUsage,history=payload?.usageHistory;
   if(!burn||typeof burn.epoch!=='string'||!burn.epoch||burn.epoch.length>128||!integer(burn.lastSequence??burn.latestSequence)){this.clear();this.key=null;this.rows=[];this.burn=null;return this.state();}
   const sequence=burn.lastSequence??burn.latestSequence,key=cursorPrefix+hash(burn.epoch+'\n'+String(scope));
@@ -41,7 +41,13 @@ export class TokenMotion{
   if(this.needsPrime){this.needsPrime=false;this.clear();return this.state();}
   const candidates=rows.filter(row=>row.sequence>previous&&freshRow(row,now)&&providerKnown(row));
   const additions=[];
-  for(const row of candidates.slice(-16))for(const [kind,definition] of Object.entries(TOKEN_KINDS)){
+  // Prefer real observations belonging to workers already represented on the
+  // compact screen. Unrepresented observations remain in rows and the durable
+  // feed; as before, only a bounded visual sample can be animated at once.
+  const selected=visibleWorkers instanceof Set?candidates.filter(row=>visibleWorkers.has(workerId(row))).slice(-16):[];
+  const remaining=16-selected.length;
+  const chosen=selected.length?[...selected,...(remaining?candidates.filter(row=>!visibleWorkers.has(workerId(row))).slice(-remaining):[])]:candidates.slice(-16);
+  for(const row of chosen)for(const [kind,definition] of Object.entries(TOKEN_KINDS)){
    const amount=row[definition.field];if(!integer(amount)||amount===0)continue;
    const count=Math.min(4,1+Math.floor(Math.log10(amount))),duration=2400;
    for(let i=0;i<count;i++)additions.push({id:row.id+':'+kind+':'+i,observationId:row.id,sequence:row.sequence,workerId:workerId(row),kind,amount,representedTokens:amount/count,start:now+i*130+(kind==='cached'?65:kind==='output'?130:0),duration});
